@@ -1,0 +1,13 @@
+Overview
+========
+
+Riffler is web app builder.
+
+Prerequisites
+-------------
+
+sass
+coffeescript
+uglifyjs
+python
+tornado

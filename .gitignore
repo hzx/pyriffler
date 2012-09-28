@@ -1,0 +1,11 @@
+
+# temporary vim files
+*.swp
+
+# compiled python binaries
+*.pyc
+*.pyo
+
+*.log
+
+.sass-cache
