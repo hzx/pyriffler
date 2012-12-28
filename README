@@ -1,7 +1,8 @@
 Overview
 ========
 
-Riffler is web app builder.
+Riffler is web app builder. Generate wender server application.
+Generate mutant applications. Generate themes.
 
 Prerequisites
 -------------
@@ -11,3 +12,12 @@ coffeescript
 uglifyjs
 python
 tornado
+
+compilation order:
+-----------------
+test.py - run server tests
+style.py - compyle sass to css and watch for changes in sass files
+# TODO(dem) need eco templates and compile it to js
+client.py - compile from coffee to js, cat with third party js libs
+compress_css_js - obfuscate css and js, create css name map
+templates.py - inline css and js loader into html, minify all html templates
