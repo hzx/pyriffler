@@ -5,7 +5,11 @@ import os.path
 import sys
 import re
 import shutil
-import riffler.utils
+from riffler import settings
+from riffler.utils.gen import generateCookieSecret, generateUniqueFilename
+from riffler.utils.template import compileTemplate, processCss, prepareCss, compressCss, compressJs, compressHtml, compressCssJs
+from riffler.utils.coffee import compileCoffeeModule, compileCoffee
+from riffler.utils.sass import scssToCss
 
 from mutant.compiler import Compiler
 
@@ -35,7 +39,7 @@ def saveBuildStat(filePath):
 def generateBuildStat(filename):
   # generate cookie secret
   if options.cookie_secret == None:
-    options.cookie_secret = riffler.utils.generateCookieSecret()
+    options.cookie_secret = generateCookieSecret()
   # increment build num
   options.build_num = options.build_num + 1
 
@@ -65,27 +69,16 @@ def recreateBuildPath(path):
   shutil.copytree(os.path.join(options.wender_path, 'static'), os.path.join(path, 'static'))
   shutil.copytree(os.path.join(options.wender_path, 'templates'), os.path.join(path, 'templates'))
 
-def generateStaticTemplates(modules):
-  raise Exception('generateStaticTemplates not implemented')
-
-def generateHandlers(modules):
-  raise Exception('generateHandlers not implemented')
-
-def generateUrls(modules):
-  raise Exception('generateUrls not implemented')
-
-def renderServerTemplate(urls):
-  raise Exception('renderServerTemplate not implemented')
-
 def generateServerApps(modules):
   # generate static templates
-  generateStaticTemplates(modules)
+
   # generate handlers
-  generateHandlers(modules)
+
   # generate urls
-  generateUrls(modules)
+
   # render server template with urls
-  renderServerTemplate(urls)
+
+  print('TODO(dem) need code to generate server apps')
 
 def printModule(module):
   print('"%s"' % (module.name))
@@ -105,6 +98,105 @@ def printModule(module):
   for name, cl in module.classes.items():
     print('    "%s"' % name)
 
+
+# compile module app
+def compileApp(module):
+  scssPath = os.path.abspath(os.path.normpath(
+      module.path + ('/../style/%s' % module.name)))
+  imgPath = os.path.abspath(os.path.normpath(
+      module.path + '/../style/img'))
+  imgTmpPath = os.path.join(settings.TMP_PATH, 'img')
+  # generate dest filenames
+  loaderTemplate = os.path.join(settings.TEMPLATES_PATH, 'app_loader.coffee')
+  loaderCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderJs = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderJsMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderCompressJs = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+
+  appCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  appJs = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+
+  loaderScss = os.path.join(scssPath, 'loader.scss')
+  loaderCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderCssMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderCompressCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+
+  mainScss = os.path.join(scssPath, 'main.scss')
+  mainCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  mainCssMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  mainCompressCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+
+  srcApp = os.path.join(settings.TEMPLATES_PATH, 'app.html')
+  templateName = 'app-%s.html' % module.name
+  destApp = os.path.join(settings.TMP_PATH, templateName)
+  destCompressApp = os.path.join(settings.TMP_PATH, templateName)
+  # create app loader coffee from template
+  compileTemplate(loaderTemplate, loaderCoffee, {
+      'css': "{{ static_url('theme/%s.css') }}" % module.name,
+      'js': "{{ static_url('app/%s.js') }}" % module.name,
+      'app_name': module.name,
+      'message': '{{ message }}',
+      }, {})
+  # compile app loader coffee to js
+  compileCoffee(loaderCoffee, loaderJs)
+
+  # compile sass style
+  scssToCss(loaderScss, loaderCss)
+  scssToCss(mainScss, mainCss)
+
+  # copy img from style to tmp path
+  shutil.copytree(imgPath, imgTmpPath)
+
+  # compress loaderCss
+  # compressCssJs(loaderCss, loaderJs)
+  compressCss(loaderCss, loaderCssMap, loaderCompressCss)
+
+  # compress loaderJs
+  compressJs(loaderJs, loaderCssMap, loaderCompressJs, loaderJsMap)
+
+  # compress mainCss
+  compressCss(mainCss, mainCssMap, mainCompressCss)
+
+  # compile mutant module to appCoffee
+
+  # compile appCoffee to appJs
+
+  # compress appJs
+
+  # compressCssJs(mainCss, appJs)
+
+  # create app html template
+  compileTemplate(srcApp, destApp, {
+      'lang': '{{ lang }}',
+      'title': '{{ title }}',
+      }, {
+      'loader_css': loaderCompressCss,
+      'loader_js': loaderCompressJs,
+      })
+
+  # compress app-name.html
+  compressHtml(destApp, destCompressApp)
+
+  shutil.copy(destCompressApp, os.path.join(options.build_path, 'templates/%s' % templateName))
+  shutil.copy(mainCompressCss, os.path.join(options.build_path, 'static/theme/%s.css' % module.name))
+  # shutil.copy(appJs, os.path.join(options.build_path, 'static/app/%s.js' % module.name))
+
+  # remove tmp files
+  os.remove(loaderCoffee)
+  os.remove(loaderJs)
+  # os.remove(loaderJsMap)
+  os.remove(loaderCompressJs)
+  # os.remove(appCoffee)
+  # os.remove(appJs)
+  os.remove(loaderCss)
+  os.remove(loaderCssMap)
+  os.remove(loaderCompressCss)
+  os.remove(mainCss)
+  os.remove(mainCssMap)
+  os.remove(mainCompressCss)
+  os.remove(destApp)
+  shutil.rmtree(imgTmpPath)
+
 def main():
   # recreate base structure
   statFilename = os.path.join(options.build_path, 'build')
@@ -115,11 +207,11 @@ def main():
   # compile applications modules
   modules = getCompiledModules(options.modules)
 
+  for module in modules:
+    compileApp(module)
+
   # generate server applications
   generateServerApps(modules)
-
-  # generate applications
-  generateApps(modules)
 
 if __name__ == '__main__':
   tornado.options.parse_command_line()

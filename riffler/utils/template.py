@@ -1,8 +1,8 @@
 from tornado import template
-from rbtls import settings
-from rbtls.utils.file import readFile, writeFile
-from rbtls.utils.process import execute
-from rbtls.utils.image import encodeImage
+from riffler import settings
+from riffler.utils.file import readFile, writeFile
+from riffler.utils.process import execute
+from riffler.utils.image import encodeImage
 import os.path, re
 
 
@@ -40,6 +40,7 @@ def compressXml(src, dest):
 
 
 def compressCss(src, mapFilename, dest):
+  prepareCss(src)
   execute(
       'java', '-jar', settings.CLOSURE_STYLESHEETS,
       '--allow-unrecognized-properties',
@@ -103,23 +104,25 @@ def processCss(filename):
 
   def transformUrl(match):
     imagefile = match.group(1)
+    print("transformUrl, imagefile '%s'" % imagefile)
     # if the image is not local or can't be found, leave the url alone:
     if (imagefile.startswith('http://')
         or imagefile.startswith('https://')
         or not os.path.exists(os.path.join(cssDir, imagefile))):
       return match.group(0)
-    return encodeImage(cssDir, imagefile)
+    return encodeImage(os.path.join(cssDir, imagefile))
 
-  pattern = 'url\((.*\.(svg|png|jpg|gif))\)'
+  # pattern = 'url\((.*\.(svg|png|jpg|gif))\)'
+  pattern = 'url\(([^)]+\.(svg|png|jpg|gif))\)'
   return re.sub(pattern, transformUrl, css)
 
 
 def compressJs(src, cssMap, dest, jsMap):
-  print(src)
   execute(
       'java', '-jar', settings.CLOSURE_COMPILER,
-      '--compilation_level', 'ADVANCED_OPTIMIZATIONS',
-      '--warning_level', 'VERBOSE',
+      # '--compilation_level', 'ADVANCED_OPTIMIZATIONS',
+      '--compilation_level', 'SIMPLE_OPTIMIZATIONS',
+      # '--warning_level', 'VERBOSE',
       '--process_jquery_primitives',
       #'--variable_map_input_file', jsMap,
       #'--variable_map_output_file',  jsMap,
@@ -127,3 +130,29 @@ def compressJs(src, cssMap, dest, jsMap):
       '--js', src,
       '--js_output_file', dest
       )
+
+def getJsMapName(filename):
+  name, ext = os.path.splitext(filename)
+  return os.path.join(settings.TMP_PATH, '%s-js-map.js' % name)
+
+def getCssMapName(filename):
+  name, ext = os.path.splitext(filename)
+  return os.path.join(settings.TMP_PATH, '%s-css-map.js' % name)
+
+def compressCssJs(cssFilename, jsFilename):
+  cssPath = os.path.join(settings.TMP_PATH, cssFilename)
+  jsPath = os.path.join(settings.TMP_PATH, jsFilename)
+
+  cssMap = getCssMapName(jsFilename)
+  jsMap = getJsMapName(jsFilename)
+
+  # create tmp js file
+  jsTmp = jsPath + '.tmp'
+
+  if os.path.exists(jsTmp): os.remove(jsTmp)
+
+  prepareCss(cssPath)
+  compressCss(cssPath, cssMap, cssPath)
+  compressJs(jsPath, cssMap, jsTmp, jsMap)
+
+  os.rename(jsTmp, jsPath)

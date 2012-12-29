@@ -1,7 +1,7 @@
 import os
 import os.path
-from rbtls.utils.process import execute, executeWithOutput
-from rbtls.utils.file import cat
+from riffler.utils.process import execute, executeWithOutput
+from riffler.utils.file import cat
 
 
 class CoffeeCompiler:
@@ -57,11 +57,14 @@ class CoffeeCompiler:
     cat(self.sourceTable, dest)
 
 
-def compileCoffee(module, dest):
+def compileCoffeeModule(module, dest):
   compiler = CoffeeCompiler()
   coffeetmp = dest + '.coffee'
   compiler.collectCoffee(module, coffeetmp)
 
-  jsContent = executeWithOutput('coffee', '--compile', '--print', coffeetmp) 
-  with open(dest, 'w') as f: f.write(jsContent)
+  compileCoffee(coffeetmp, dest)
   os.remove(coffeetmp)
+
+def compileCoffee(src, dest):
+  result = executeWithOutput('coffee', '--compile', '--print', src) 
+  with open(dest, 'w') as f: f.write(result)
