@@ -8,15 +8,15 @@ import shutil
 from riffler import settings
 from riffler.utils.gen import generateCookieSecret, generateUniqueFilename
 from riffler.utils.template import compileTemplate, processCss, prepareCss, compressCss, compressJs, compressHtml, compressCssJs
-from riffler.utils.coffee import compileCoffeeModule, compileCoffee
+from riffler.utils.coffee import compileCoffeeModule, compileCoffee, collectCoffeeModule
 from riffler.utils.sass import scssToCss
+from riffler.utils.file import cat
 
 from mutant.compiler import Compiler
 
 
 define('paths', default=None, type=str, help='paths where to find mutant modules, scss style folder')
 define('build_path', default=None, type=str, help='dir where to put builded project')
-define('build_stat_path', default=None, type=str, help='dir where to find build statistics file')
 define('wender_path', default='../wender', help='wender project dir')
 define('modules', default=None, type=str, help='module names')
 define('build_num', default=0, type=int, help='build number')
@@ -100,7 +100,7 @@ def printModule(module):
 
 
 # compile module app
-def compileApp(module):
+def compileApp(module, wenderCoffee):
   scssPath = os.path.abspath(os.path.normpath(
       module.path + ('/../style/%s' % module.name)))
   imgPath = os.path.abspath(os.path.normpath(
@@ -121,6 +121,8 @@ def compileApp(module):
   loaderCssMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
   loaderCompressCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
 
+  mergedCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+
   mainScss = os.path.join(scssPath, 'main.scss')
   mainCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
   mainCssMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
@@ -137,8 +139,12 @@ def compileApp(module):
       'app_name': module.name,
       'message': '{{ message }}',
       }, {})
+
+  cat([wenderCoffee, loaderCoffee], mergedCoffee)
+  compileCoffee(mergedCoffee, loaderJs)
+
   # compile app loader coffee to js
-  compileCoffee(loaderCoffee, loaderJs)
+  # compileCoffee(loaderCoffee, loaderJs)
 
   # compile sass style
   scssToCss(loaderScss, loaderCss)
@@ -186,6 +192,7 @@ def compileApp(module):
   os.remove(loaderJs)
   # os.remove(loaderJsMap)
   os.remove(loaderCompressJs)
+  os.remove(mergedCoffee)
   # os.remove(appCoffee)
   # os.remove(appJs)
   os.remove(loaderCss)
@@ -207,8 +214,16 @@ def main():
   # compile applications modules
   modules = getCompiledModules(options.modules)
 
+  # compile wender_coffee
+  wenderModule = os.path.abspath(os.path.join(
+      options.wender_path, 'wender_coffee/wender.module'))
+  wenderCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  collectCoffeeModule(wenderModule, wenderCoffee)
+
   for module in modules:
-    compileApp(module)
+    compileApp(module, wenderCoffee)
+
+  os.remove(wenderCoffee)
 
   # generate server applications
   generateServerApps(modules)

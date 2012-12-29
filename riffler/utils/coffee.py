@@ -56,8 +56,15 @@ class CoffeeCompiler:
 
     cat(self.sourceTable, dest)
 
+def collectCoffeeModule(module, dest):
+  compiler = CoffeeCompiler()
+  compiler.collectCoffee(module, dest)
 
 def compileCoffeeModule(module, dest):
+  """
+  app.module path
+  dest filename
+  """
   compiler = CoffeeCompiler()
   coffeetmp = dest + '.coffee'
   compiler.collectCoffee(module, coffeetmp)
