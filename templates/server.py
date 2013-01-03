@@ -8,7 +8,7 @@ CURRENT_DIR = os.path.dirname(__file__)
 
 # IMPORT HERE HANDLERS
 {% for handler in handlers %}
-from {{ handler.module }}.handlers import handlers as {{ handler.alias }}
+from {{ handler['module'] }}.handlers import handlers as {{ handler['alias'] }}
 {% end %}
 
 from ruspod.handlers import handlers as ruspodHandlers
@@ -17,17 +17,19 @@ from ruspodan.handlers import handlers as ruspodanHandlers
 from tornado.options import define, options
 define('port', default=8000, help='web port', type=int)
 # COMPOSE DB CONNECTION
-define('mongodb', default='mongodb://{{ mongodb }}')
+define('mongodb', default='{{ mongodb }}')
 
 # COMPOSE HANDLERS HERE
-handlers = {% for handler in handlers %}{{ handler.alias }}{% if handlers[-1] != handler %} + {% end %}{% end %}
+handlers = {% for handler in handlers %}{{ handler['alias'] }}{% if handlers[-1] != handler %} + {% end %}{% end %}
 
 # COMPOSE SETTINGS
 settings = {
     'debug': {{ debug }},
     'autoescape': None,
-    'template_path': os.path.normpath(os.path.join(CURRENT_DIR, './templates')),
-    'static_path': os.path.normpath(os.path.join(CURRENT_DIR, './static')),
+    'template_path': os.path.abspath(os.path.normpath(os.path.join(
+        CURRENT_DIR, '../templates'))),
+    'static_path': os.path.abspath(os.path.normpath(os.path.join(
+        CURRENT_DIR, '../static'))),
     'xsrf_cookies': True,
     'cookie_secret': '{{ cookie_secret }}',
     'login_url': '/login',

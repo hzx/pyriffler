@@ -11,16 +11,33 @@ from riffler.utils.template import compileTemplate, processCss, prepareCss, comp
 from riffler.utils.coffee import compileCoffeeModule, compileCoffee, collectCoffeeModule
 from riffler.utils.sass import scssToCss
 from riffler.utils.file import cat
+from riffler.jasmine import buildSuite
 
 from mutant.compiler import Compiler
 
 
+define('task', default=None, type=str, help='select task to run')
 define('paths', default=None, type=str, help='paths where to find mutant modules, scss style folder')
 define('build_path', default=None, type=str, help='dir where to put builded project')
 define('wender_path', default='../wender', help='wender project dir')
 define('modules', default=None, type=str, help='module names')
 define('build_num', default=0, type=int, help='build number')
+define('mongodb', default=None, type=str, help='mongodb connection')
 define('cookie_secret', default=None, type=str, help='cookie secret for wender')
+define('test_module', default=None, type=str, help='tested app.module filename')
+define('test_suite', default=None, type=str, help='test_suite.module filename')
+
+# TODO(dem) build database schema
+
+def generateMongodb():
+  dbname = os.path.basename(options.build_path)
+  user = re.sub('-', '', generateUniqueFilename())
+  password = re.sub('-', '', generateUniqueFilename())
+
+  # TODO(dem) need to create user in database
+
+  # return 'mongodb://%s:%s@localhost:27017/%s' % (user, password, dbname)
+  return 'mongodb://localhost:27017/%s' % dbname
 
 def loadBuildStat(filePath):
   if not os.path.exists(filePath):
@@ -33,10 +50,15 @@ def loadBuildStat(filePath):
 
 def saveBuildStat(filePath):
   with open(filePath, 'w') as f:
+    f.write('%s = "%s"\n' % ('mongodb', options.mongodb))
     f.write('%s = "%s"\n' % ('cookie_secret', options.cookie_secret))
     f.write('%s = %d\n' % ('build_num', options.build_num))
 
 def generateBuildStat(filename):
+  # generate mongodb connection
+  if options.mongodb == None:
+    options.mongodb = generateMongodb()
+    # need to create
   # generate cookie secret
   if options.cookie_secret == None:
     options.cookie_secret = generateCookieSecret()
@@ -70,13 +92,30 @@ def recreateBuildPath(path):
   shutil.copytree(os.path.join(options.wender_path, 'templates'), os.path.join(path, 'templates'))
 
 def generateServerApps(modules):
+  BUILD_WENDERSERVER = os.path.join(options.build_path, 'wender/server.py')
+  WENDERSERVER_TEMPLATE = os.path.join(settings.TEMPLATES_PATH, 'server.py')
+
   # generate static templates
 
   # generate handlers
 
   # generate urls
 
-  # render server template with urls
+  # compose handlers
+  handlers = []
+  for module in modules:
+    handlers.append({
+        'module': module.name,
+        'alias': '%sHandlers' % module.name,
+        })
+
+  # render server template with handlers
+  compileTemplate(WENDERSERVER_TEMPLATE, BUILD_WENDERSERVER, {
+      'handlers': handlers,
+      'mongodb': options.mongodb,
+      'debug': True,
+      'cookie_secret': options.cookie_secret,
+      }, {})
 
   print('TODO(dem) need code to generate server apps')
 
@@ -204,7 +243,7 @@ def compileApp(module, wenderCoffee):
   os.remove(destApp)
   shutil.rmtree(imgTmpPath)
 
-def main():
+def build():
   # recreate base structure
   statFilename = os.path.join(options.build_path, 'build')
   loadBuildStat(statFilename)
@@ -227,6 +266,18 @@ def main():
 
   # generate server applications
   generateServerApps(modules)
+
+def test():
+  if os.path.exists(options.build_path):
+    shutil.rmtree(options.build_path)
+  os.mkdir(options.build_path)
+  buildSuite(options.test_suite, options.test_module, options.build_path)
+
+def main():
+  if options.task == 'build':
+    build()
+  if options.task == 'test':
+    test()
 
 if __name__ == '__main__':
   tornado.options.parse_command_line()
