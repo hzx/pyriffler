@@ -11,10 +11,12 @@
   <script type="text/javascript">
     window.onload = function() {
       wender.init();
-      jasmine.getEnv().addReporter(new jasmine.TrivialReporter());
+      jasmine.getEnv().addReporter(new jasmine.HtmlReporter());
       jasmine.getEnv().execute();
     }
   </script>
 </head>
-<body id="suite"></body>
+<body>
+  <div id="suite"></div>
+</body>
 </html>

@@ -6,7 +6,7 @@ import sys
 import re
 import shutil
 from riffler import settings
-from riffler.utils.gen import generateCookieSecret, generateUniqueFilename
+from riffler.utils.gen import generateCookieSecret, generateUniqueFilename, generateTmpFilename
 from riffler.utils.template import compileTemplate, processCss, prepareCss, compressCss, compressJs, compressHtml, compressCssJs
 from riffler.utils.coffee import compileCoffeeModule, compileCoffee, collectCoffeeModule
 from riffler.utils.sass import scssToCss
@@ -26,6 +26,7 @@ define('mongodb', default=None, type=str, help='mongodb connection')
 define('cookie_secret', default=None, type=str, help='cookie secret for wender')
 define('test_module', default=None, type=str, help='tested app.module filename')
 define('test_suite', default=None, type=str, help='test_suite.module filename')
+
 
 # TODO(dem) build database schema
 
@@ -147,30 +148,31 @@ def compileApp(module, wenderCoffee):
   imgTmpPath = os.path.join(settings.TMP_PATH, 'img')
   # generate dest filenames
   loaderTemplate = os.path.join(settings.TEMPLATES_PATH, 'app_loader.coffee')
-  loaderCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  loaderJs = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  loaderJsMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  loaderCompressJs = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderCoffee = generateTmpFilename()
+  loaderJs = generateTmpFilename()
+  loaderJsMap = generateTmpFilename()
+  loaderCompressJs = generateTmpFilename()
+  loaderThirdPartyJs = generateTmpFilename()
 
-  appCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  appJs = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  appCoffee = generateTmpFilename()
+  appJs = generateTmpFilename()
 
   loaderScss = os.path.join(scssPath, 'loader.scss')
-  loaderCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  loaderCssMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  loaderCompressCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  loaderCss = generateTmpFilename()
+  loaderCssMap = generateTmpFilename()
+  loaderCompressCss = generateTmpFilename()
 
-  mergedCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  mergedCoffee = generateTmpFilename()
 
   mainScss = os.path.join(scssPath, 'main.scss')
-  mainCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  mainCssMap = os.path.join(settings.TMP_PATH, generateUniqueFilename())
-  mainCompressCss = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  mainCss = generateTmpFilename()
+  mainCssMap = generateTmpFilename()
+  mainCompressCss = generateTmpFilename()
 
   srcApp = os.path.join(settings.TEMPLATES_PATH, 'app.html')
   templateName = 'app-%s.html' % module.name
-  destApp = os.path.join(settings.TMP_PATH, templateName)
-  destCompressApp = os.path.join(settings.TMP_PATH, templateName)
+  destApp = generateTmpFilename()
+  destCompressApp = generateTmpFilename()
   # create app loader coffee from template
   compileTemplate(loaderTemplate, loaderCoffee, {
       'css': "{{ static_url('theme/%s.css') }}" % module.name,
@@ -181,6 +183,9 @@ def compileApp(module, wenderCoffee):
 
   cat([wenderCoffee, loaderCoffee], mergedCoffee)
   compileCoffee(mergedCoffee, loaderJs)
+
+  # cat loaderJs with json2
+  cat([settings.JSON2, loaderJs], loaderThirdPartyJs)
 
   # compile app loader coffee to js
   # compileCoffee(loaderCoffee, loaderJs)
@@ -197,7 +202,7 @@ def compileApp(module, wenderCoffee):
   compressCss(loaderCss, loaderCssMap, loaderCompressCss)
 
   # compress loaderJs
-  compressJs(loaderJs, loaderCssMap, loaderCompressJs, loaderJsMap)
+  compressJs(loaderThirdPartyJs, loaderCssMap, loaderCompressJs, loaderJsMap)
 
   # compress mainCss
   compressCss(mainCss, mainCssMap, mainCompressCss)
@@ -229,6 +234,7 @@ def compileApp(module, wenderCoffee):
   # remove tmp files
   os.remove(loaderCoffee)
   os.remove(loaderJs)
+  os.remove(loaderThirdPartyJs)
   # os.remove(loaderJsMap)
   os.remove(loaderCompressJs)
   os.remove(mergedCoffee)
@@ -256,7 +262,7 @@ def build():
   # compile wender_coffee
   wenderModule = os.path.abspath(os.path.join(
       options.wender_path, 'wender_coffee/wender.module'))
-  wenderCoffee = os.path.join(settings.TMP_PATH, generateUniqueFilename())
+  wenderCoffee = generateTmpFilename()
   collectCoffeeModule(wenderModule, wenderCoffee)
 
   for module in modules:
