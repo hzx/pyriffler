@@ -19,7 +19,7 @@ def compileTemplate(src, dest, params, files):
     templateParams[name] = readFile(files[name]).rstrip()
 
   # generate template
-  destContent = template.Template(readFile(src))\
+  destContent = template.Template(readFile(src), autoescape=None)\
       .generate(**templateParams)
 
   # save template
@@ -48,7 +48,7 @@ def compressCss(src, mapFilename, dest):
       '--output-renaming-map-format', 'CLOSURE_UNCOMPILED',
       #'--output-renaming-map-format', 'CLOSURE_COMPILED',
       #'--output-renaming-map-format', 'JSON',
-      '--rename', 'CLOSURE',
+      #'--rename', 'CLOSURE',
       '--output-file', dest,
       '--output-renaming-map', mapFilename,
       src
