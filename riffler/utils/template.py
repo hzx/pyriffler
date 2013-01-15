@@ -39,7 +39,7 @@ def compressXml(src, dest):
       '--output', dest, src)
 
 
-def compressCss(src, mapFilename, dest):
+def compressCss(src, mapFilename, dest, compress):
   prepareCss(src)
   execute(
       'java', '-jar', settings.CLOSURE_STYLESHEETS,
@@ -53,7 +53,7 @@ def compressCss(src, mapFilename, dest):
       '--output-renaming-map', mapFilename,
       src
       )
-  optimized = processCss(dest)
+  optimized = processCss(dest, compress)
   with open(dest, 'w') as f:
     f.write(optimized)
 
@@ -95,7 +95,7 @@ def prepareCss(filename):
     f.writelines(lines)
 
 
-def processCss(filename):
+def processCss(filename, compress):
   """ Reads and converts a css file by replacing all image references into
       base64 encoded images.
   """
@@ -110,7 +110,7 @@ def processCss(filename):
         or imagefile.startswith('https://')
         or not os.path.exists(os.path.join(cssDir, imagefile))):
       return match.group(0)
-    return encodeImage(os.path.join(cssDir, imagefile))
+    return encodeImage(os.path.join(cssDir, imagefile), compress)
 
   # pattern = 'url\((.*\.(svg|png|jpg|gif))\)'
   pattern = 'url\(([^)]+\.(svg|png|jpg|gif))\)'

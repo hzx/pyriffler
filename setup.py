@@ -17,6 +17,7 @@ from mutant.compiler import Compiler
 
 
 define('task', default=None, type=str, help='select task to run')
+define('debug', default=True, help='build debug version')
 define('paths', default=None, type=str, help='paths where to find mutant modules, scss style folder')
 define('build_path', default=None, type=str, help='dir where to put builded project')
 define('wender_path', default='../wender', help='wender project dir')
@@ -26,6 +27,10 @@ define('mongodb', default=None, type=str, help='mongodb connection')
 define('cookie_secret', default=None, type=str, help='cookie secret for wender')
 define('test_module', default=None, type=str, help='tested app.module filename')
 define('test_suite', default=None, type=str, help='test_suite.module filename')
+
+def safeRemoveFile(filename):
+  if os.path.exists(filename):
+    os.remove(filename)
 
 
 # TODO(dem) build database schema
@@ -197,23 +202,24 @@ def compileApp(module, wenderCoffee):
   # copy img from style to tmp path
   shutil.copytree(imgPath, imgTmpPath)
 
-  # compress loaderCss
-  # compressCssJs(loaderCss, loaderJs)
-  compressCss(loaderCss, loaderCssMap, loaderCompressCss)
-
-  # compress loaderJs
-  compressJs(loaderThirdPartyJs, loaderCssMap, loaderCompressJs, loaderJsMap)
-
-  # compress mainCss
-  compressCss(mainCss, mainCssMap, mainCompressCss)
-
   # compile mutant module to appCoffee
 
   # compile appCoffee to appJs
 
-  # compress appJs
+  # compress loaderCss
+  # compressCssJs(loaderCss, loaderJs)
+  compressCss(loaderCss, loaderCssMap, loaderCompressCss, not options.debug)
 
-  # compressCssJs(mainCss, appJs)
+  # compress mainCss
+  compressCss(mainCss, mainCssMap, mainCompressCss, not options.debug)
+
+  if not options.debug:
+    # compress loaderJs
+    compressJs(loaderThirdPartyJs, loaderCssMap, loaderCompressJs, loaderJsMap)
+
+    # compress appJs
+  else:
+    shutil.copy(loaderThirdPartyJs, loaderCompressJs)
 
   # create app html template
   compileTemplate(srcApp, destApp, {
@@ -224,29 +230,32 @@ def compileApp(module, wenderCoffee):
       'loader_js': loaderCompressJs,
       })
 
-  # compress app-name.html
-  compressHtml(destApp, destCompressApp)
+  if not options.debug:
+    # compress app-name.html
+    compressHtml(destApp, destCompressApp)
+  else:
+    shutil.copy(destApp, destCompressApp)
 
   shutil.copy(destCompressApp, os.path.join(options.build_path, 'templates/%s' % templateName))
   shutil.copy(mainCompressCss, os.path.join(options.build_path, 'static/theme/%s.css' % module.name))
   # shutil.copy(appJs, os.path.join(options.build_path, 'static/app/%s.js' % module.name))
 
   # remove tmp files
-  os.remove(loaderCoffee)
-  os.remove(loaderJs)
-  os.remove(loaderThirdPartyJs)
+  safeRemoveFile(loaderCoffee)
+  safeRemoveFile(loaderJs)
+  safeRemoveFile(loaderThirdPartyJs)
   # os.remove(loaderJsMap)
-  os.remove(loaderCompressJs)
-  os.remove(mergedCoffee)
+  safeRemoveFile(loaderCompressJs)
+  safeRemoveFile(mergedCoffee)
   # os.remove(appCoffee)
   # os.remove(appJs)
-  os.remove(loaderCss)
-  os.remove(loaderCssMap)
-  os.remove(loaderCompressCss)
-  os.remove(mainCss)
-  os.remove(mainCssMap)
-  os.remove(mainCompressCss)
-  os.remove(destApp)
+  safeRemoveFile(loaderCss)
+  safeRemoveFile(loaderCssMap)
+  safeRemoveFile(loaderCompressCss)
+  safeRemoveFile(mainCss)
+  safeRemoveFile(mainCssMap)
+  safeRemoveFile(mainCompressCss)
+  safeRemoveFile(destApp)
   shutil.rmtree(imgTmpPath)
 
 def build():
