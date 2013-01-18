@@ -104,7 +104,6 @@ def processCss(filename, compress):
 
   def transformUrl(match):
     imagefile = match.group(1)
-    print("transformUrl, imagefile '%s'" % imagefile)
     # if the image is not local or can't be found, leave the url alone:
     if (imagefile.startswith('http://')
         or imagefile.startswith('https://')

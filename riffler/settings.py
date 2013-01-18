@@ -3,7 +3,7 @@ import os.path
 # riffler
 CURR_PATH = os.path.dirname(__file__)
 
-TMP_PATH = '/tmp'
+TMP_PATH = '/tmp/wender'
 
 TEMPLATES_PATH = os.path.abspath(os.path.normpath(CURR_PATH + '/../templates'))
 

@@ -12,8 +12,11 @@ from riffler.utils.coffee import compileCoffeeModule, compileCoffee, collectCoff
 from riffler.utils.sass import scssToCss
 from riffler.utils.file import cat
 from riffler.jasmine import buildSuite
+from riffler.wendergen import WenderGen
 
 from mutant.compiler import Compiler
+from mutant.coffeegen import CoffeeGen
+from mutant.coffeeformatter import CoffeeFormatter
 
 
 define('task', default=None, type=str, help='select task to run')
@@ -31,7 +34,6 @@ define('test_suite', default=None, type=str, help='test_suite.module filename')
 def safeRemoveFile(filename):
   if os.path.exists(filename):
     os.remove(filename)
-
 
 # TODO(dem) build database schema
 
@@ -81,6 +83,15 @@ def getCompiledModules(moduleNames):
     module = compiler.compile(options.paths, moduleName)
     modules.append(module)
   return modules
+
+def getModuleCode(module):
+  coffeeGen = CoffeeGen()
+  coffeeFormatter = CoffeeFormatter()
+  wenderGen = WenderGen()
+  wenderGen.generate(module)
+  coffeeGen.generate(module)
+  code = coffeeFormatter.generate(module)
+  return code
 
 def recreateBuildPath(path):
   path = os.path.abspath(path)
@@ -161,6 +172,7 @@ def compileApp(module, wenderCoffee):
 
   appCoffee = generateTmpFilename()
   appJs = generateTmpFilename()
+  appCompressJs = generateTmpFilename()
 
   loaderScss = os.path.join(scssPath, 'loader.scss')
   loaderCss = generateTmpFilename()
@@ -202,9 +214,11 @@ def compileApp(module, wenderCoffee):
   # copy img from style to tmp path
   shutil.copytree(imgPath, imgTmpPath)
 
-  # compile mutant module to appCoffee
-
+  # compile mut module to appCoffee
+  moduleCode = getModuleCode(module)
+  with open(appCoffee, 'w') as f: f.write(moduleCode)
   # compile appCoffee to appJs
+  compileCoffee(appCoffee, appJs)
 
   # compress loaderCss
   # compressCssJs(loaderCss, loaderJs)
@@ -218,8 +232,10 @@ def compileApp(module, wenderCoffee):
     compressJs(loaderThirdPartyJs, loaderCssMap, loaderCompressJs, loaderJsMap)
 
     # compress appJs
+    compressJs(appJs, '', appCompressJs, '')
   else:
     shutil.copy(loaderThirdPartyJs, loaderCompressJs)
+    shutil.copy(appJs, appCompressJs)
 
   # create app html template
   compileTemplate(srcApp, destApp, {
@@ -238,17 +254,17 @@ def compileApp(module, wenderCoffee):
 
   shutil.copy(destCompressApp, os.path.join(options.build_path, 'templates/%s' % templateName))
   shutil.copy(mainCompressCss, os.path.join(options.build_path, 'static/theme/%s.css' % module.name))
-  # shutil.copy(appJs, os.path.join(options.build_path, 'static/app/%s.js' % module.name))
+  shutil.copy(appCompressJs, os.path.join(options.build_path, 'static/app/%s.js' % module.name))
 
   # remove tmp files
   safeRemoveFile(loaderCoffee)
   safeRemoveFile(loaderJs)
   safeRemoveFile(loaderThirdPartyJs)
-  # os.remove(loaderJsMap)
+  safeRemoveFile(loaderJsMap)
   safeRemoveFile(loaderCompressJs)
   safeRemoveFile(mergedCoffee)
-  # os.remove(appCoffee)
-  # os.remove(appJs)
+  safeRemoveFile(appCoffee)
+  safeRemoveFile(appJs)
   safeRemoveFile(loaderCss)
   safeRemoveFile(loaderCssMap)
   safeRemoveFile(loaderCompressCss)
@@ -259,6 +275,10 @@ def compileApp(module, wenderCoffee):
   shutil.rmtree(imgTmpPath)
 
 def build():
+  # recreate tmp path
+  if os.path.exists(settings.TMP_PATH):
+    shutil.rmtree(settings.TMP_PATH)
+  os.mkdir(settings.TMP_PATH)
   # recreate base structure
   statFilename = os.path.join(options.build_path, 'build')
   loadBuildStat(statFilename)
@@ -267,6 +287,17 @@ def build():
 
   # compile applications modules
   modules = getCompiledModules(options.modules)
+
+  # coffeeGen = CoffeeGen()
+  # coffeeFormatter = CoffeeFormatter()
+  # wenderGen = WenderGen()
+  # # compile mutant module to appCoffee
+  # for module in modules:
+  #   wenderGen.generate(module)
+  #   coffeeGen.generate(module)
+  #   moduleCode = coffeeFormatter.generate(module)
+  #   # debug
+  #   print moduleCode
 
   # compile wender_coffee
   wenderModule = os.path.abspath(os.path.join(
@@ -282,7 +313,14 @@ def build():
   # generate server applications
   generateServerApps(modules)
 
+  # shutil.rmtree(settings.TMP_PATH)
+
 def test():
+  # recreate tmp path
+  if os.path.exists(settings.TMP_PATH):
+    shutil.rmtree(settings.TMP_PATH)
+  os.mkdir(settings.TMP_PATH)
+
   if os.path.exists(options.build_path):
     shutil.rmtree(options.build_path)
   os.mkdir(options.build_path)
