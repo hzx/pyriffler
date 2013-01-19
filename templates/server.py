@@ -11,8 +11,8 @@ CURRENT_DIR = os.path.dirname(__file__)
 from {{ handler['module'] }}.handlers import handlers as {{ handler['alias'] }}
 {% end %}
 
-from ruspod.handlers import handlers as ruspodHandlers
-from ruspodan.handlers import handlers as ruspodanHandlers
+# from ruspod.handlers import handlers as ruspodHandlers
+# from ruspodan.handlers import handlers as ruspodanHandlers
 
 from tornado.options import define, options
 define('port', default=8000, help='web port', type=int)

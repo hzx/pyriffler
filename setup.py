@@ -220,6 +220,9 @@ def compileApp(module, wenderCoffee):
   # compile appCoffee to appJs
   compileCoffee(appCoffee, appJs)
 
+  # debug(dem)
+  print appCoffee
+
   # compress loaderCss
   # compressCssJs(loaderCss, loaderJs)
   compressCss(loaderCss, loaderCssMap, loaderCompressCss, not options.debug)
@@ -263,7 +266,7 @@ def compileApp(module, wenderCoffee):
   safeRemoveFile(loaderJsMap)
   safeRemoveFile(loaderCompressJs)
   safeRemoveFile(mergedCoffee)
-  safeRemoveFile(appCoffee)
+  # safeRemoveFile(appCoffee)
   safeRemoveFile(appJs)
   safeRemoveFile(loaderCss)
   safeRemoveFile(loaderCssMap)

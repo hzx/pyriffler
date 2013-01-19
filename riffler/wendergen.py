@@ -11,8 +11,8 @@ class WenderGen(object):
 
   def __init__(self):
     wenderPrefix = 'wender.'
-    self.domElementName = 'new ' + wenderPrefix + 'DomElement'
-    self.domTextName = 'new ' + wenderPrefix + 'DomText'
+    self.domElementName = wenderPrefix + 'DomElement'
+    self.domTextName = wenderPrefix + 'DomText'
     self.funcCounter = 0
 
   def genFuncName(self):
@@ -20,7 +20,7 @@ class WenderGen(object):
     return 'sys_renderItem%d' % self.funcCounter
 
   def createRenderItem(self, expr, parentClass):
-    func = core.FunctionNode(common.Token(0, 'void', 'void'), self.genFuncName())
+    func = core.FunctionNode([common.Token(0, 'void', 'void')], self.genFuncName())
 
     # add param values
     func.addParameter('values', 'var')
@@ -57,15 +57,30 @@ class WenderGen(object):
           if (bnode.nodetype == 'return') and (bnode.body.nodetype == 'tag'):
             bnode.body = self.tagToElement(bnode.body, cl)
 
+    # search crud in function values body
+    for name, func in module.functions.items():
+      self.crudToOrm(func.bodyNodes)
+
+    # search crud in class function values body
+    for name, cl in module.classes.items():
+      for fname, func in cl.functions.items():
+        self.crudToOrm(func.bodyNodes)
+
+  def crudToOrm(self, nodes):
+    
+
   def tagToElement(self, tag, parentClass):
     """
     Convert TagNode to FunctionCallNode.
     parentClass None if tag in global function
     """
     element = core.FunctionCallNode(self.domElementName)
+    element.isConstructorCall = True
 
     # add tagName
-    element.addParameter(core.ValueNode("'%s'" % tag.name))
+    tagValue = core.ValueNode("'%s'" % tag.name)
+    tagValue.isLitString = True
+    element.addParameter(tagValue)
 
     attrs = core.DictBodyNode()
     # add attributes
@@ -94,7 +109,7 @@ class WenderGen(object):
           childs.append(self.functioncallToText(child, parentClass))
           continue
         if child.nodetype == 'value':
-          childs.append(self.valueToText(child))
+          childs.append(self.valueToText(child, parentClass))
           continue
         if child.nodetype == 'tag':
           childs.append(self.tagToElement(child, parentClass))
@@ -120,35 +135,55 @@ class WenderGen(object):
 
     return element
 
-  def valueToText(self, value):
+  def valueToText(self, value, parentClass):
     """
     Create and return 
     """
-    # TODO if name then create dom text, values, renderItem func
-    # return core.ValueNode(value.value)
     domtext = core.FunctionCallNode(self.domTextName)
-    if value.value.isdigit() or (value.value[0] == "'"):
-      domtext.addParameter(core.ValueNode(value.value))
-      domtext.addParameter(core.ValueNode('none'))
-      domtext.addParameter(core.ValueNode('none'))
+    domtext.isConstructorCall = True
+    if value.isName:
+      nameValue = core.ValueNode("''")
+      nameValue.isLitString = True
+
+      # create values array node
+      valuesArr = core.ArrayBodyNode()
+      valuesArr.addItem(value)
+
+      # create render function node
+      renderFunc = core.FunctionNode([common.Token(0, 'void', 'void')], self.genFuncName())
+      renderFunc.addParameter('values', 'var')
+      ret = core.ReturnNode()
+      ret.setBody(core.ValueNode('values[0].value'))
+      renderFunc.addBodyNode(ret)
+
+      domtext.addParameter(nameValue)
+      domtext.addParameter(valuesArr)
+
+      if parentClass:
+        parentClass.addFunction(renderFunc)
+        renderValue = core.ValueNode('this.' + renderFunc.name)
+      else:
+        self.module.functions[renderFunc.name] = renderFunc
+        renderValue = core.ValueNode(renderFunc.name)
+
+      renderValue.isName = True
+      domtext.addParameter(renderValue)
     else:
-      domtext.addParameter(core.ValueNode("''"))
-      domtext.addParameter(core.ArrayBodyNode())
-      domtext.addParameter(core.ValueNode('PLACE_HERE_RENDER_ITEM_FUNC_NAME'))
+      nameValue = core.ValueNode(value.value)
+      nameValue.isName = True
+      domtext.addParameter(nameValue)
+      domtext.addParameter(core.ValueNode('none'))
+      domtext.addParameter(core.ValueNode('none'))
     return domtext
 
   def functioncallToText(self, fcall, parentClass):
     # create render function
     domtext = core.FunctionCallNode(self.domTextName)
+    domtext.isConstructorCall = True
     # search variable values
     values = self.searchParamVariables(fcall)
     # create render item function
     renderFunc = self.createRenderItem(fcall, parentClass)
-    # add renderFunc to module
-    if parentClass:
-      parentClass.addFunction(renderFunc)
-    else:
-      self.module.functions[renderFunc.name] = renderFunc
 
     # add params to text func
 
@@ -159,8 +194,10 @@ class WenderGen(object):
     domtext.addParameter(values)
     # renderValues
     if parentClass:
+      parentClass.addFunction(renderFunc)
       domtext.addParameter(core.ValueNode('this.' + renderFunc.name))
     else:
+      self.module.functions[renderFunc.name] = renderFunc
       domtext.addParameter(core.ValueNode(renderFunc.name))
     # domtext.addParameter(renderFunc)
 
@@ -171,7 +208,7 @@ class WenderGen(object):
     for node in fcall.params:
       if node.nodetype == 'value':
         # have name
-        if not (node.value.isdigit() or (node.value[0] == "'")):
+        if node.isName:
           # create value node
           values.append(node)
           continue
@@ -197,13 +234,12 @@ class WenderGen(object):
       if (node.nodetype == 'value') and not (node.value.isdigit() or node.value[0] == ";"):
         # arrVal = core.ArrayValueNode(common.Token(0, 'values', 'name'), index)
         val = core.ValueNode('values[%d].value' % index)
-        # index = index + 1
+        index = index + 1
         params.append(val)
       else:
         # for function replace param recursive
         if (node.nodetype == 'functioncall'):
-          index = index + len(params)
-          index = index + self.replaceParamVariables(node, index)
+          index = self.replaceParamVariables(node, index)
         params.append(node)
 
     fcall.params = params
