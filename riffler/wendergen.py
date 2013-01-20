@@ -97,21 +97,31 @@ class WenderGen(object):
     element.addParameter(attrs)
 
     childs = []
-    childList = None
-    childRender = None
+    paramList = None
+    paramRender = None
 
     # if one child and name rmap - create reactive map: add list and render list item
     if len(tag.childs) == 1:
       child = tag.childs[0]
       # we have reactive map
-      if (child.nodetype == 'functioncall') and (child.name == 'rmap'):
-        if len(child.params) != 2:
-          raise Exception('rmap must have 2 params, module "%s"' % self.module.name)
-        childList = child.params[0]
-        childRender = child.params[1]
+      if (child.nodetype == 'functioncall'):
+        if child.name == 'rmap':
+          if len(child.params) != 2:
+            raise Exception('rmap must have 2 params, module "%s"' % self.module.name)
+          paramList = child.params[0]
+          paramRender = child.params[1]
+        elif child.name == 'rvalue':
+          if len(child.params) != 2:
+            raise Exception('rvalue must have 2 params, module "%s"' % self.module.name)
+          val = child.params[0]
+          valRender = child.params[1]
+          renderElem = core.FunctionCallNode(valRender.value)
+          renderElem.addParameter(core.ValueNode(val.value))
+          # add renderElem to childs
+          childs.append(renderElem)
 
     # add childs
-    if childList == None:
+    if paramList == None and len(childs) == 0:
       for child in tag.childs:
         if child.nodetype == 'functioncall':
           childs.append(self.functioncallToText(child, parentClass))
@@ -130,16 +140,16 @@ class WenderGen(object):
       childArr.addItem(child)
     element.addParameter(childArr)
     
-    if childList == None:
+    if paramList == None:
       # add list
       element.addParameter(core.ValueNode('none'))
       # add list item render
       element.addParameter(core.ValueNode('none'))
     else:
       # add list
-      element.addParameter(childList)
+      element.addParameter(paramList)
       # add list item render
-      element.addParameter(childRender)
+      element.addParameter(paramRender)
 
     return element
 
