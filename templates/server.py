@@ -4,7 +4,7 @@ import tornado.options
 import tornado.web
 import os.path
 
-CURRENT_DIR = os.path.dirname(__file__)
+CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # IMPORT HERE HANDLERS
 {% for handler in handlers %}
@@ -26,10 +26,8 @@ handlers = {% for handler in handlers %}{{ handler['alias'] }}{% if handlers[-1]
 settings = {
     'debug': {{ debug }},
     'autoescape': None,
-    'template_path': os.path.abspath(os.path.normpath(os.path.join(
-        CURRENT_DIR, '../templates'))),
-    'static_path': os.path.abspath(os.path.normpath(os.path.join(
-        CURRENT_DIR, '../static'))),
+    'template_path': os.path.abspath(os.path.normpath(CURRENT_DIR + '/../templates')),
+    'static_path': os.path.abspath(os.path.normpath(CURRENT_DIR + '/../static')),
     'xsrf_cookies': True,
     'cookie_secret': '{{ cookie_secret }}',
     'login_url': '/login',

@@ -14,6 +14,8 @@ class WenderGen(object):
     self.domElementName = wenderPrefix + 'DomElement'
     self.domTextName = wenderPrefix + 'DomText'
     self.funcCounter = 0
+    # cache generated modules
+    self.cache = {}
 
   def genFuncName(self):
     self.funcCounter = self.funcCounter + 1
@@ -37,11 +39,13 @@ class WenderGen(object):
     return func
 
   def generate(self, module):
-    # TODO(dem) geneate linked modules
-
     self.genModule(module)
 
   def genModule(self, module):
+    if self.cache.has_key(module.name):
+      return
+    self.cache[module.name] = ''
+
     self.module = module
     # search tag in function return nodes
     for name, func in module.functions.items():
@@ -66,8 +70,12 @@ class WenderGen(object):
       for fname, func in cl.functions.items():
         self.crudToOrm(func.bodyNodes)
 
+    # generate imported modules
+    for mn, mod in module.modules.items():
+      self.genModule(mod)
+
   def crudToOrm(self, nodes):
-    
+    pass
 
   def tagToElement(self, tag, parentClass):
     """
