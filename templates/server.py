@@ -3,6 +3,7 @@ import tornado.ioloop
 import tornado.options
 import tornado.web
 import os.path
+from wender.handlers import handlers as wenderHandlers
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -20,7 +21,7 @@ define('port', default=8000, help='web port', type=int)
 define('mongodb', default='{{ mongodb }}')
 
 # COMPOSE HANDLERS HERE
-handlers = {% for handler in handlers %}{{ handler['alias'] }}{% if handlers[-1] != handler %} + {% end %}{% end %}
+handlers = wenderHandlers {% for handler in handlers %} + {{ handler['alias'] }}{% end %}
 
 # COMPOSE SETTINGS
 settings = {

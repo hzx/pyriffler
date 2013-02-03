@@ -20,3 +20,6 @@ window.onload = ->
     # run application
     window.{{app_name}}.main ->
       loader.addClass("hidden-smooth")
+      window.setTimeout ->
+        loader.addClass("hidden")
+      , 1000

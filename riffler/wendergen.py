@@ -10,9 +10,8 @@ class WenderGen(object):
   """
 
   def __init__(self):
-    wenderPrefix = 'wender.'
-    self.domElementName = wenderPrefix + 'DomElement'
-    self.domTextName = wenderPrefix + 'DomText'
+    self.domElementName = 'wender.DomElement'
+    self.domTextName = 'wender.DomText'
     self.funcCounter = 0
     # cache generated modules
     self.cache = {}
@@ -47,6 +46,20 @@ class WenderGen(object):
     self.cache[module.name] = ''
 
     self.module = module
+
+    # convert structs to classes
+    for name, st in module.structs.items():
+      module.classes[name] = self.structToClass(st)
+
+    # convert orm type creations with constructor
+    # in global variables
+    for name, va in module.variables.items():
+      self.varToOrm(va)
+    # in classes variables
+    for name, cl in module.classes.items():
+      for name, va in cl.variables.items():
+        self.varToOrm(va)
+
     # search tag in function return nodes
     for name, func in module.functions.items():
       # search return node
@@ -61,7 +74,7 @@ class WenderGen(object):
           if (bnode.nodetype == 'return') and (bnode.body.nodetype == 'tag'):
             bnode.body = self.tagToElement(bnode.body, cl)
 
-    # search crud in function values body
+    # search crud in function values body, variables
     for name, func in module.functions.items():
       self.crudToOrm(func.bodyNodes)
 
@@ -74,8 +87,107 @@ class WenderGen(object):
     for mn, mod in module.modules.items():
       self.genModule(mod)
 
+  def structToClass(self, st):
+    """
+    Create class from struct st.
+    """
+    # debug
+    print st.name
+
+    # choose baseName
+    baseName = 'wender.OrmStruct'
+    if 'id' in st.variables:
+      baseName = 'wender.OrmHashStruct'
+
+    # create class
+    cl = core.ClassNode(st.name, baseName)
+
+    # add constructor
+    con = core.FunctionNode(None, None)
+    superCall = core.FunctionCallNode('super')
+    con.addBodyNode(superCall)
+
+    superCall.addParameter(core.ValueNode("'%s'" % cl.name))
+    if cl.name == 'World':
+      cl.baseName = 'wender.World'
+      superCall.addParameter(core.ValueNode("'world'"))
+      superCall.addParameter(core.ValueNode('none'))
+    else:
+      # add params
+      con.addParameter('name', 'var')
+      con.addParameter('parent', 'var')
+      # add super call to body
+      superCall.addParameter(core.ValueNode('name'))
+      superCall.addParameter(core.ValueNode('parent'))
+
+    cl.setConstructor(con)
+
+    # move variables
+    for svname, sva in st.variables.items():
+      # create variable
+      va = core.VariableNode(sva.decltype, sva.name)
+
+      # create variable init body
+      body = None
+
+      if self.isArrayType(sva):
+        body = core.FunctionCallNode('wender.OrmList')
+        # add params
+        typeParam = core.ValueNode("'%s'" % sva.decltype[0].word)
+
+      elif self.isStructType(sva):
+        # take word from single token in declaration type
+        bodyClass = sva.decltype[0].word
+        body = core.FunctionCallNode(bodyClass)
+        # add params
+        typeParam = core.ValueNode("'%s'" % bodyClass)
+
+      else:
+        body = core.FunctionCallNode('wender.OrmValue')
+        # add params
+        typeParam = core.ValueNode("'%s'" % sva.decltype[0].word)
+
+      nameParam = core.ValueNode("'%s'" % sva.name)
+      thisParam = core.ValueNode('this')
+
+      body.isConstructorCall = True
+      body.addParameter(typeParam)
+      body.addParameter(nameParam)
+      body.addParameter(thisParam)
+      va.setBody(body)
+
+      # add to class
+      cl.addVariable(va)
+
+    return cl
+
   def crudToOrm(self, nodes):
-    pass
+    """
+    Convert structs to orm classes, crud operations to orm crud methods
+    """
+    # search struct constructor call
+    for node in nodes:
+      if node.nodetype == 'variable':
+        self.varToOrm(node)
+
+  def varToOrm(self, va):
+    """
+    Convert array of struct to wender.OrmList
+    """
+    # for array create initialization with OrmList
+    if self.isArrayOfStructType(va):
+      # create OrmList
+      ol = core.FunctionCallNode('wender.OrmList')
+      ol.isConstructorCall = True
+      # add params
+      vatype = common.getOnlyName(va.decltype[0].word)
+      # type
+      ol.addParameter(core.ValueNode("'%s'" % vatype))
+      # name
+      ol.addParameter(core.ValueNode('none'))
+      # parent
+      ol.addParameter(core.ValueNode('none'))
+      va.body = ol
 
   def tagToElement(self, tag, parentClass):
     """
@@ -263,4 +375,13 @@ class WenderGen(object):
     fcall.params = params
 
     return index
+
+  def isArrayType(self, va):
+    return (len(va.decltype) == 3) and (va.decltype[1].word == '[') and (va.decltype[2].word == ']')
+
+  def isStructType(self, va):
+    return (len(va.decltype) == 1) and common.isStructName(self.module, va.decltype[0].word)
+
+  def isArrayOfStructType(self, va):
+    return self.isArrayType(va) and common.isStructName(self.module, va.decltype[0].word)
 
