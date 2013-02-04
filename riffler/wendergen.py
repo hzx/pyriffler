@@ -91,9 +91,6 @@ class WenderGen(object):
     """
     Create class from struct st.
     """
-    # debug
-    print st.name
-
     # choose baseName
     baseName = 'wender.OrmStruct'
     if 'id' in st.variables:
@@ -129,6 +126,7 @@ class WenderGen(object):
 
       # create variable init body
       body = None
+      defaultValue = None
 
       if self.isArrayType(sva):
         body = core.FunctionCallNode('wender.OrmList')
@@ -146,6 +144,9 @@ class WenderGen(object):
         body = core.FunctionCallNode('wender.OrmValue')
         # add params
         typeParam = core.ValueNode("'%s'" % sva.decltype[0].word)
+        # add default value
+        if 'default' in sva.inits:
+          defaultValue = sva.inits['default']
 
       nameParam = core.ValueNode("'%s'" % sva.name)
       thisParam = core.ValueNode('this')
@@ -154,6 +155,8 @@ class WenderGen(object):
       body.addParameter(typeParam)
       body.addParameter(nameParam)
       body.addParameter(thisParam)
+      if defaultValue != None:
+        body.addParameter(defaultValue)
       va.setBody(body)
 
       # add to class
