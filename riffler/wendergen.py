@@ -51,6 +51,33 @@ class WenderGen(object):
     for name, st in module.structs.items():
       module.classes[name] = self.structToClass(st)
 
+    # convert superclass tag to wender.DomElement and call default constructor
+    for name, cl in module.classes.items():
+      if cl.baseName == 'tag':
+        # rename baseName
+        cl.baseName = 'wender.DomElement'
+        # if constructor not exists then create it
+        if cl.constructor == None:
+          con = core.FunctionNode(None, None)
+          cl.setConstructor(con)
+        con = cl.constructor
+        con.addParameter('name', 'var')
+        con.addParameter('attributes', 'var')
+        con.addParameter('childs', 'var')
+        con.addParameter('list', 'var')
+        con.addParameter('render', 'var')
+          
+        # to constructor add function call super with default params
+        superCall = core.FunctionCallNode('super')
+        #constructor: (name, attributes, childs, list, render) ->
+        superCall.addParameter(core.ValueNode("'div'"))
+        superCall.addParameter(core.ValueNode('attributes'))
+        superCall.addParameter(core.ValueNode('childs'))
+        superCall.addParameter(core.ValueNode('list'))
+        superCall.addParameter(core.ValueNode('render'))
+
+        con.addSupercallNode(superCall)
+
     # convert orm type creations with constructor
     # in global variables
     for name, va in module.variables.items():
@@ -60,17 +87,26 @@ class WenderGen(object):
       for name, va in cl.variables.items():
         self.varToOrm(va)
 
-    # search tag in function return nodes
+    # search orm values
+    # in global functions
     for name, func in module.functions.items():
-      # search return node
+      self.ormValueToValueInFunction(func)
+    # in classes functions
+    for name, cl in module.classes.items():
+      for fname, func in cl.functions.items():
+        self.ormValueToValueInFunction(func)
+
+    # search tag in function return nodes and variable and value bodies
+    for name, func in module.functions.items():
       for bnode in func.bodyNodes:
+        # search return node
         if (bnode.nodetype == 'return') and (bnode.body.nodetype == 'tag'):
           bnode.body = self.tagToElement(bnode.body, None)
 
-    # search tags in methods
     for name, cl in module.classes.items():
       for fname, func in cl.functions.items():
         for bnode in func.bodyNodes:
+          # search tags in methods
           if (bnode.nodetype == 'return') and (bnode.body.nodetype == 'tag'):
             bnode.body = self.tagToElement(bnode.body, cl)
 
@@ -191,6 +227,21 @@ class WenderGen(object):
       # parent
       ol.addParameter(core.ValueNode('none'))
       va.body = ol
+
+  def ormValueToValueInFunction(self, func):
+    """
+    Search orm value in function body
+    """
+    pass
+
+  def ormNodeToValue(self, node):
+    """
+    Add to ValueNode.name suffix .value if name is OrmValue object.
+    """
+    # test value body contains orm value
+    if (node.nodetype == 'value') and (node.isName):
+      # check if name is ormvalue
+      pass
 
   def tagToElement(self, tag, parentClass):
     """
