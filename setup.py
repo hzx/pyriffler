@@ -130,7 +130,7 @@ def generateServerApps(modules):
   compileTemplate(WENDERSERVER_TEMPLATE, BUILD_WENDERSERVER, {
       'handlers': handlers,
       'mongodb': options.mongodb,
-      'debug': True,
+      'debug': options.debug,
       'cookie_secret': options.cookie_secret,
       }, {})
 
