@@ -80,6 +80,7 @@ def getCompiledModules(moduleNames):
   # compile apps
   compiler = Compiler()
   for moduleName in re.split('\s*:\s*', moduleNames):
+    print 'compile "%s"' % moduleName
     module = compiler.compile(options.paths, moduleName)
     modules.append(module)
   return modules
@@ -289,7 +290,9 @@ def build():
   generateBuildStat(statFilename)
 
   # compile applications modules
-  modules = getCompiledModules(options.modules)
+  modules = []
+  for moduleName in re.split('\s*:\s*', options.modules):
+    modules = modules + getCompiledModules(moduleName)
 
   # coffeeGen = CoffeeGen()
   # coffeeFormatter = CoffeeFormatter()
