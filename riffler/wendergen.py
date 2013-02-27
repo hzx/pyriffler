@@ -1,4 +1,3 @@
-from mutant import coffeegen
 from mutant import core
 from mutant import common
 from mutant import grammar
@@ -542,7 +541,11 @@ class WenderGen(object):
       # if node.value == 'world':
       #   return node
       if self.isObservableValueName(node.value, func, cl):
-        if node.body:
+        if node.body and node.bodyReactive:
+        # if node.body:
+          # debug
+          # print 'value "%s", bodyReactive "%s"' % (node.value, str(node.bodyReactive))
+
           setvalue = core.FunctionCallNode('%s.setValue' % node.value)
 
           param = self.processObservableNode(node.body, func, cl)
@@ -720,21 +723,57 @@ class WenderGen(object):
   def isArrayOfStructType(self, va):
     return self.isArrayType(va) and common.isStructName(self.module, va.decltype[0].word)
 
-  def isStructFieldSimple(self, name, func, cl):
+  def isStructValue(self, name, func, cl):
+    """
+    Search variable declaration,
+    check variable is simple type of struct, or robject type.
+    """
+    # name must be struct parent type and simple type
+    isStructParent = False
+    isSimpleType = False
     # split name
     parts = self.dot_re.split(name)
-    # left side name part - first
-    first = parts[0]
-    # name must be struct parent type and simple type
-    isStructType = False
-    isSimpleType = False
-    count = len(parts)
-    if count == 1:
-      pass
-    tail = parts[1:count]
-    for part in tail:
-      pass
-    return isStructType and isSimpleType
+    partsCount = len(parts)
+
+
+    # if partsCount == 1
+    # search in func params or in global variables
+
+    # if partsCount >= 2 then
+    # if parts[0] == 'this' then search in class variables
+    # then if parts[0] is module name then search in module variables by parts
+    # then search in func params by parts
+    # then search in variables by parts
+
+
+    if parts[0] == 'this' and len(parts) >= 2:
+      # search variable in class variables
+      decltype = self.searchVarTypeInClassVariables(parts[1], cl)
+
+      if decltype:
+        print 'isStructFieldSimple name "%s" decltype "%s"' % (name, decltype[0].word)
+    else:
+      for part in parts:
+        # search variable in func params
+        decltype = self.searchVarTypeInFunctionParams(part, func) if func else None
+        # search variable in variables
+        decltype = decltype if decltype else self.searchVarTypeInVariables(part, self.module)
+        if decltype:
+          print 'isStructFieldSimple name "%s" decltype "%s"' % (part, decltype[0].word)
+    return isStructParent and isSimpleType
+
+  def searchVarTypeInVariables(self, name, module):
+    va = module.variables.get(name, None)
+    return va.decltype if va else None
+
+  def searchVarTypeInFunctionParams(self, name, func):
+    for paramName, paramType in func.params:
+      if paramName == name: return paramType
+    return None
+
+  def searchVarTypeInClassVariables(self, name, cl):
+    va = cl.variables.get(name, None)
+    return va.decltype if va else None
 
   def isObservableValueName(self, name, func, cl):
     """
@@ -744,7 +783,12 @@ class WenderGen(object):
     # raise Exception('implement isStructFieldSimple')
     # split name
     parts = self.dot_re.split(name)
+    count = len(parts)
     firstName = parts[0]
+
+    if count == 1:
+      return False
+
     # if name begin from this then search in class variables
     if firstName == 'this' and cl:
       vname = parts[1]

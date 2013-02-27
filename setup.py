@@ -13,10 +13,13 @@ from riffler.utils.sass import scssToCss
 from riffler.utils.file import cat
 from riffler.jasmine import buildSuite
 from riffler.wendergen import WenderGen
+from riffler.server_wendergen import ServerWenderGen
 
 from mutant.compiler import Compiler
 from mutant.coffeegen import CoffeeGen
 from mutant.coffeeformatter import CoffeeFormatter
+from mutant.pygen import PyGen
+from mutant.pyformatter import PyFormatter
 
 
 define('task', default=None, type=str, help='select task to run')
@@ -85,13 +88,24 @@ def getCompiledModules(moduleNames):
     modules.append(module)
   return modules
 
-def getModuleCode(module):
+def genCoffeeModuleCode(module):
   coffeeGen = CoffeeGen()
   coffeeFormatter = CoffeeFormatter()
   wenderGen = WenderGen()
   wenderGen.generate(module)
   coffeeGen.generate(module)
   code = coffeeFormatter.generate(module)
+  return code
+
+def genPyModuleCode(module):
+  wenderGen = ServerWenderGen()
+  pyGen = PyGen()
+  pyFormatter = PyFormatter()
+
+  wenderGen.generate(module)
+  pyGen.generate(module)
+  code = pyFormatter.generate(module)
+
   return code
 
 def recreateBuildPath(path):
@@ -216,7 +230,7 @@ def compileApp(module, wenderCoffee):
   shutil.copytree(imgPath, imgTmpPath)
 
   # compile mut module to appCoffee
-  moduleCode = getModuleCode(module)
+  moduleCode = genCoffeeModuleCode(module)
   with open(appCoffee, 'w') as f: f.write(moduleCode)
   # compile appCoffee to appJs
   compileCoffee(appCoffee, appJs)
