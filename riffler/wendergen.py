@@ -13,6 +13,7 @@ class WenderGen(object):
     self.domRawElementName = 'wender.DomRawElement'
     self.domElementName = 'wender.DomElement'
     self.domTextName = 'wender.DomText'
+    self.observableListName = 'wender.ObservableList'
     self.funcCounter = 0
     # cache generated modules
     self.cache = {}
@@ -119,11 +120,11 @@ class WenderGen(object):
       # search left values in functions
 
     for cname, cl in module.classes.items():
-      for vname, var in cl.variables.items():
+      for vname, va in cl.variables.items():
         # search right values in class variables
 
         # search left values in class variables - this must be error
-        pass
+        cl.variables[vname] = self.processObservableNode(va, None, cl)
 
       for fname, func in cl.functions.items():
         # search right values in class functions
@@ -432,7 +433,8 @@ class WenderGen(object):
 
   def processObservableNode(self, node, func, cl):
     if node.nodetype == 'variable':
-      node.body = self.processObservableNode(node.body, func, cl)
+      if node.body:
+        node.body = self.processObservableNode(node.body, func, cl)
     elif node.nodetype == 'value':
       # not process world value
       # if node.value == 'world':
