@@ -119,9 +119,9 @@ def recreateBuildPath(path):
   os.mkdir(path)
 
   # copy wender server
-  shutil.copytree(os.path.join(options.wender_path, 'wender'), os.path.join(path, 'wender'))
-  shutil.copytree(os.path.join(options.wender_path, 'static'), os.path.join(path, 'static'))
-  shutil.copytree(os.path.join(options.wender_path, 'templates'), os.path.join(path, 'templates'))
+  shutil.copytree(os.path.join(options.wender_path, 'server/wender'), os.path.join(path, 'wender'))
+  shutil.copytree(os.path.join(options.wender_path, 'server/static'), os.path.join(path, 'static'))
+  shutil.copytree(os.path.join(options.wender_path, 'server/templates'), os.path.join(path, 'templates'))
 
 def generateServerApps(modules):
   BUILD_WENDERSERVER = os.path.join(options.build_path, 'wender/server.py')
@@ -321,7 +321,7 @@ def build():
 
   # compile wender_coffee
   wenderModule = os.path.abspath(os.path.join(
-      options.wender_path, 'wender_coffee/wender.module'))
+      options.wender_path, 'client/wender_coffee/wender.module'))
   wenderCoffee = generateTmpFilename()
   collectCoffeeModule(wenderModule, wenderCoffee)
 

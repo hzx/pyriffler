@@ -302,109 +302,6 @@ class WenderGen(object):
       return self.createDomRawElementObject(tag)
     return self.createDomElementObject(tag, parentClass) if tag.name in grammar.HTML_TAGS else self.createViewFactory(tag, parentClass)
 
-    # elementName = self.domElementName
-    # tagName = tag.name
-
-    # # create view constructor call
-    # if not (tag.name in grammar.HTML_TAGS):
-    #   elementName = tag.name
-    #   tagName = 'div'
-
-    # element = core.FunctionCallNode(elementName)
-    # element.isConstructorCall = True
-
-    # add tagName
-    # tagValue = core.ValueNode("'%s'" % tagName)
-    # tagValue.isLitString = True
-    # element.addParameter(tagValue)
-
-    attrs = core.DictBodyNode()
-    # add attributes
-    for attrName, attrBody in tag.attributes.items():
-      attrs.addItem(attrName, attrBody)
-    # element.addParameter(attrs)
-
-    childs = []
-    paramList = None
-    paramRender = None
-
-    # if one child and name rmap - create reactive map: add list and render list item
-    if len(tag.childs) == 1:
-      child = tag.childs[0]
-      # we have reactive map
-      if (child.nodetype == 'functioncall'):
-        if child.name == 'rmap':
-          if len(child.params) != 2:
-            raise Exception('rmap must have 2 params, module "%s"' % self.module.name)
-          paramList = child.params[0]
-          paramRender = child.params[1]
-        elif child.name == 'rvalue':
-          if len(child.params) != 2:
-            raise Exception('rvalue must have 2 params, module "%s"' % self.module.name)
-          val = child.params[0]
-          valRender = child.params[1]
-          renderElem = core.FunctionCallNode(valRender.value)
-          renderElem.addParameter(core.ValueNode(val.value))
-          # add renderElem to childs
-          childs.append(renderElem)
-
-    # add childs
-    if paramList == None and len(childs) == 0:
-      for child in tag.childs:
-        if child.nodetype == 'functioncall':
-          childs.append(self.functioncallToText(child, parentClass))
-          continue
-        if child.nodetype == 'value':
-          childs.append(self.valueToText(child, parentClass))
-          continue
-        if child.nodetype == 'tag':
-          childs.append(self.tagToElement(child, parentClass))
-          continue
-        raise Exception('unknown tag child nodetype, current "%s", module "%s"' % (child.nodetype, self.module.name))
-
-    # element.addParameter(childs)
-    childArr = core.ArrayBodyNode()
-    for child in childs:
-      childArr.addItem(child)
-    # element.addParameter(childArr)
-
-    element = None
-    # create element
-    if tag.name in grammar.HTML_TAGS:
-      element = core.FunctionCallNode(self.domElementName)
-      # add name param
-      nameParam = core.ValueNode("'%s'" % tag.name)
-      nameParam.isLitString = True
-      element.addParameter(nameParam)
-    # create view factory method
-    else:
-      element = core.FunctionCallNode(tag.name)
-    element.isConstructorCall = True
-    element.addParameter(attrs)
-    element.addParameter(childArr)
-
-    # # create view constructor call
-    # if not (tag.name in grammar.HTML_TAGS):
-    #   elementName = tag.name
-    #   tagName = 'div'
-    # element.addParameter(tagValue)
-    # element.addParameter(attrs)
-    # element.addParameter(childArr)
-    
-    # add list and render
-    if paramList == None:
-      # add list
-      element.addParameter(core.ValueNode('none'))
-      # add list item render
-      element.addParameter(core.ValueNode('none'))
-    else:
-      # add list
-      element.addParameter(paramList)
-      # add list item render
-      element.addParameter(paramRender)
-
-    return element
-
   def valueToText(self, value, parentClass):
     """
     Create and return 
@@ -633,6 +530,12 @@ class WenderGen(object):
           if len(child.params) != 1:
             raise Exception('rraw must have 1 params, module "%s"' % self.module.name)
           childs.addItem(self.createRawText(child.params[0]))
+        elif child.name == 'rfunction':
+          # create function call node and add to childs
+          if len(child.params) != 1:
+            raise Exception('rfunction must have 1 param, module "%s"' % self.module.name)
+          renderFunc = core.FunctionCallNode(child.params[0].value)
+          childs.addItem(renderFunc)
 
     # add childs
     if paramList == None and len(childs.items) == 0:
