@@ -5,7 +5,7 @@ window.onload = ->
   T = w.DomText
 
   # create loading structure
-  loader = new E("div", {"id": "loader-wrap"}, [
+  loader = new E("div", {"id": "loader_wrap"}, [
     new E("div", {"id": "loader"}, [
       new T("{{ message }}", null, null)
     ], null, null)
@@ -19,7 +19,7 @@ window.onload = ->
   w.browser.loadScript "{{ js }}", ->
     # run application
     window.{{app_name}}.main ->
-      loader.addClass("hidden-smooth")
+      loader.addClass("hidden_smooth")
       window.setTimeout ->
         loader.addClass("hidden")
       , 1000
