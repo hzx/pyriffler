@@ -42,11 +42,11 @@ class WenderGen(object):
     return func
 
   def generate(self, module):
+    self.mainModule = module
     self.genModule(module)
 
   def genModule(self, module):
-    if self.cache.has_key(module.name):
-      return
+    if module.name in self.cache: return
     self.cache[module.name] = ''
 
     self.module = module
@@ -747,3 +747,6 @@ class WenderGen(object):
             if firstType == 'robject' or common.isStructName(self.module, firstType):
               return True
     return False
+
+  def flushUrls(self, urls):
+    pass

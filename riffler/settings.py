@@ -4,7 +4,9 @@ import os.path
 CURR_PATH = os.path.dirname(__file__)
 
 TMP_PATH = '/tmp/wender'
-
+MUTANT_PATH = '/home/dem/projects/mutant'
+WENDER_PATH = '/home/dem/projects/wender'
+WENDER_LIB_PATH = os.path.join(WENDER_PATH, 'lib')
 TEMPLATES_PATH = os.path.abspath(os.path.normpath(CURR_PATH + '/../templates'))
 
 THIRD_PARTY_PATH = os.path.abspath(os.path.normpath(CURR_PATH + '/../third_party'))
