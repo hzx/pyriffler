@@ -156,12 +156,15 @@ class WenderBuilder(object):
       shutil.rmtree(settings.TMP_PATH)
     os.mkdir(settings.TMP_PATH)
 
-    wenderModule = os.path.abspath(os.path.join(
-        settings.WENDER_PATH, 'client/wender_coffee/wender.module'))
+    # build wender client library
+    wenderModule = os.path.join(settings.WENDER_PATH, 'client/wender_coffee/wender.module')
     wenderCoffee = generateTmpFilename()
     collectCoffeeModule(wenderModule, wenderCoffee)
 
     compiler = Compiler()
+
+    # build login app
+
     for conf in self.confapps:
       module = compiler.compile(':'.join(self.confsite.paths), conf.name)
       # self.genJsApp(conf, module)
@@ -424,7 +427,11 @@ class WenderBuilder(object):
 
     compileTemplate(serverTemplate, serverDest, {
         'handlers': handlers,
-        'mongodb': self.genMongodbConnection(),
+        'db_host': self.confsite.db_host,
+        'db_port': self.confsite.db_port,
+        'db_name': self.confsite.db_name,
+        'db_user': self.confsite.db_user,
+        'db_pass': self.confsite.db_pass,
         'debug': self.isDebug,
         'cookie_secret': self.confsite.cookie_secret,
       }, {})

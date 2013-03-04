@@ -26,6 +26,12 @@ usage:
 
   riffler create appname
   create application structure for new appname project
+
+  riffle db
+  create database structure for current project
+
+  riffler pass
+  print password and encoded password
 """
 
 def usage():
@@ -60,12 +66,21 @@ def taskCreate():
 def taskDb():
   print 'task db NOT IMPLEMENTED'
 
+def taskPass():
+  sys.path.insert(0, os.path.join(settings.WENDER_PATH, 'server'))
+  from wender.utils.crypt import genPassword, encodePassword
+  rawpass = genPassword()
+  encpass = encodePassword(rawpass)
+  print 'pass: %s' % rawpass
+  print 'encoded: %s' % encpass
+
 def main():
   taskMap = {
       'debug': taskDebug,
       'release': taskRelease,
       'create': taskCreate,
       'db': taskDb,
+      'pass': taskPass,
     }
 
   # by default use task debug
