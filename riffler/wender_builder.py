@@ -375,6 +375,17 @@ class WenderBuilder(object):
         os.path.join(settings.WENDER_PATH, 'server/templates'),
         os.path.join(self.confsite.build_path, 'templates')
       )
+    shutil.copy(
+        os.path.join(settings.WENDER_PATH, 'server/run.sh'),
+        self.confsite.build_path
+      )
+    # create simlink to static directory
+    projectName = os.path.basename(self.projectPath)
+    projectParentPath = os.path.dirname(self.projectPath)
+    os.symlink(
+        os.path.join(projectParentPath, '%s_static/img' % projectName),
+        os.path.join(self.confsite.build_path, 'static/img')
+        )
 
   def genMongodbConnection(self):
     if len(self.confsite.db_user) > 0:
