@@ -12,6 +12,8 @@ from riffler.utils.sass import scssToCss
 from riffler.utils.file import cat
 from riffler.wendergen import WenderGen
 from riffler.server_wendergen import ServerWenderGen
+from mutant import core
+from mutant import common
 from mutant.compiler import Compiler
 from mutant.coffeegen import CoffeeGen
 from mutant.coffeeformatter import CoffeeFormatter
@@ -101,6 +103,9 @@ class WenderBuilder(object):
     # create wender structure
     self.createWenderCarcass()
 
+    # build server structs file
+    self.structs = self.genStructs()
+
     # build apps
     self.buildApps()
 
@@ -167,14 +172,27 @@ class WenderBuilder(object):
 
     for conf in self.confapps:
       module = compiler.compile(':'.join(self.confsite.paths), conf.name)
+
+      # add orm structs
+      mainFunc = module.functions.get('main', None)
+      if mainFunc:
+        ormFn = core.FunctionCallNode('wender.orm.addStructs')
+        # add structs param
+        ormFn.addParameter(self.structs)
+        # insert to main method orm.addStructs
+        mainFunc.bodyNodes.insert(0, ormFn)
+
       # self.genJsApp(conf, module)
       self.compileApp(module, wenderCoffee)
+
 
   def buildStaticApps(self):
     # compiler = Compiler()
     # for conf in self.confappstatic:
     #   module = compiler.compile(':'.join(self.confsite.paths), conf.name)
     #   self.genPyApp(conf, module)
+    pyformatter = PyFormatter()
+
     for conf in self.confappstatic:
       staticPath = os.path.join(self.confsite.build_path, os.path.basename(self.projectPath))
       initFile = os.path.join(staticPath, '__init__.py')
@@ -182,13 +200,36 @@ class WenderBuilder(object):
         os.mkdir(staticPath)
         with open(initFile, 'w') as f:
           f.close
-      # copy application file
-      appSrc = os.path.join(self.projectPath, '%s/%s.py' % (conf.name, conf.name))
-      appDest = os.path.join(staticPath, conf.name + '.py')
-      shutil.copy(appSrc, appDest)
+      # copy application files
+      # appSrc = os.path.join(self.projectPath, '%s/%s.py' % (conf.name, conf.name))
+      # appDest = os.path.join(staticPath, conf.name + '.py')
+      # shutil.copy(appSrc, appDest)
+      pySrc = os.path.join(self.projectPath, '%s/*.py' % conf.name)
+      for filename in glob.glob(pySrc):
+        shutil.copy(filename, staticPath)
+
       # copy templates
-      for filename in glob.glob(self.projectPath + '/%s/templates/*.html' % conf.name):
-        shutil.copy(filename, self.confsite.build_path + '/templates')
+      templateDest = os.path.join(self.confsite.build_path, 'templates/%s/' % conf.name)
+      if not os.path.exists(templateDest): os.mkdir(templateDest)
+      templateSrc = os.path.join(self.projectPath, '%s/templates/*.html' % conf.name)
+      for filename in glob.glob(templateSrc):
+        shutil.copy(filename, templateDest)
+
+      # add structs.py
+      vaStructs = core.VariableNode([common.Token(0, 'var', 'var')], 'structs')
+      vaStructs.body = self.structs
+      pyformatter.savePyCode(
+          pyformatter.genVariable(vaStructs),
+          os.path.join(self.confsite.build_path, 'wender/structs.py')
+          )
+
+
+  def genStructs(self):
+    compiler = Compiler()
+    module = compiler.compile(':'.join(self.confsite.paths), self.confsite.model)
+    wendergen = WenderGen()
+    structs = wendergen.createMetaStructs(module)
+    return structs
 
   def buildWenderUrls(self):
     self.createPyServer()
@@ -345,8 +386,8 @@ class WenderBuilder(object):
     gen = PyGen()
     formatter = PyFormatter()
 
-    wendergen.generate(conf.access, module)
-    wendergen.flushUrls(self.staticUrls)
+    # wendergen.generate(conf.access, module)
+    # wendergen.flushUrls(self.staticUrls)
     gen.generate(module)
 
     return formatter.generate(

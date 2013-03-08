@@ -19,6 +19,26 @@ class WenderGen(object):
     self.cache = {}
     self.eventname_re = re.compile('^on([a-zA-Z_]+)$')
     self.dot_re = re.compile('\.')
+    self.name_re = re.compile(grammar.NAME_RE)
+    self.cruds = ['insert', 'update', 'delete_from']
+    self.rightCruds = ['select_count', 'select_one', 'select_from', 'select_concat', 'select_sum']
+    self.crudToConvert = {
+        'insert': self.convertOrmInsert,
+        'select_count': self.convertOrmSelectCount,
+        'select_one': self.convertOrmSelectOne,
+        'select_from': self.convertOrmSelectFrom,
+        'select_concat': self.convertOrmSelectConcat,
+        'select_sum': self.convertOrmSelectSum,
+        'update': self.convertOrmUpdate,
+        'delete_from': self.convertOrmDeleteFrom,
+      }
+    self.valueToDefault = {
+        'bool': core.ValueNode('false'),
+        'string': core.ValueNode("''"),
+        'int': core.ValueNode('0'),
+        'float': core.ValueNode('0.0'),
+        'datetime': core.ValueNode("'0000 00:00:00'")
+      }
 
   def genFuncName(self):
     self.funcCounter = self.funcCounter + 1
@@ -67,7 +87,6 @@ class WenderGen(object):
     # convert structs to classes
     for name, st in module.structs.items():
       module.classes[name] = self.structToClass(st)
-
 
   # search tag node and convert to element
   def processTags(self, module):
@@ -154,12 +173,12 @@ class WenderGen(object):
 
     # search crud in function values body, variables
     for name, func in module.functions.items():
-      self.crudToOrm(func.bodyNodes)
+      func.bodyNodes = self.crudToOrm(func.bodyNodes)
 
     # search crud in class function values body
     for name, cl in module.classes.items():
       for fname, func in cl.functions.items():
-        self.crudToOrm(func.bodyNodes)
+        func.bodyNodes = self.crudToOrm(func.bodyNodes)
 
   def structToClass(self, st):
     """
@@ -182,6 +201,21 @@ class WenderGen(object):
     superCall = core.FunctionCallNode('super')
     con.addBodyNode(superCall)
 
+    # add clone method
+    cloneFunc = core.FunctionNode([common.Token(0, st.name, grammar.NAME_TYPE)], 'clone')
+    if cl.name != 'World':
+      cl.addFunction(cloneFunc)
+
+    # to clone method add constructor call method
+    conCall = core.FunctionCallNode(st.name)
+    conCall.isConstructorCall = True
+    conCall.addParameter(core.ValueNode('this.ormName'))
+    conCall.addParameter(core.ValueNode('none'))
+    # create st variable with conCall
+    stVar = core.VariableNode([common.Token(0, st.name, grammar.NAME_TYPE)], 'st')
+    stVar.body = conCall
+    cloneFunc.addBodyNode(stVar)
+
     # add super call parameters
     superCall.addParameter(core.ValueNode("'%s'" % cl.name))
     if cl.name == 'World':
@@ -197,6 +231,7 @@ class WenderGen(object):
       superCall.addParameter(core.ValueNode('parent'))
 
     # move variables from struct to class
+    # fill cloneFunc body
     for svname, sva in st.variables.items():
       # create variable
       va = core.VariableNode(sva.decltype, sva.name)
@@ -221,10 +256,14 @@ class WenderGen(object):
       else:
         vainit = core.FunctionCallNode('wender.OrmValue')
         # add params
-        typeParam = core.ValueNode("'%s'" % sva.decltype[0].word)
+        typeName = sva.decltype[0].word
+        typeParam = core.ValueNode("'%s'" % typeName)
         # add default value
         if 'default' in sva.inits:
           defaultValue = sva.inits['default']
+        elif typeName in self.valueToDefault:
+          defaultValue = self.valueToDefault[typeName]
+          # by type set default value
 
       nameParam = core.ValueNode("'%s'" % sva.name)
       thisParam = core.ValueNode('this')
@@ -242,16 +281,77 @@ class WenderGen(object):
       # add to class
       cl.addVariable(va)
 
+      # add variable clone
+      val = core.ValueNode('st.%s' % va.name)
+      val.body = core.FunctionCallNode('this.%s.clone' % va.name)
+      valParent = core.ValueNode('st.%s.ormParent' % va.name)
+      valParent.body = core.ValueNode('st')
+      cloneFunc.addBodyNode(val)
+      cloneFunc.addBodyNode(valParent)
+
     return cl
+
+  def createMetaStructs(self, module):
+    """
+    Create meta structs
+    {
+      structName: {
+        fieldName: {type: '', inits_expanded_dict_body},
+        fieldName: {type: '', inits_expanded_dict_body}
+      }
+    }
+    inits is fields from struct variable inits
+    """
+    structs = core.DictBodyNode()
+    for stname, st in module.structs.items():
+      # add structName:fields
+      fields = core.DictBodyNode()
+      structs.addItem("'%s'" % stname, fields)
+      # add to fields variables
+      for vname, va in st.variables.items():
+        # add to fields fieldName:params
+        params = core.DictBodyNode()
+        fields.addItem("'%s'" % vname, params)
+        # add to params type
+        params.addItem("'type'", core.ValueNode("'%s'" % va.decltype[0].word))
+        params.addItem("'isArray'", core.ValueNode('true' if self.isArrayType(va) else 'false'))
+        # add to params inits
+        for pname, pnode in va.inits.items():
+          if pnode.nodetype == 'value':
+            newvalue = "'%s'" % pnode.value if self.name_re.match(pnode.value) else pnode.value
+            newpnode = core.ValueNode(newvalue)
+          else:
+            newpnode = pnode
+          params.addItem("'%s'" % pname, newpnode)
+    return structs
 
   def crudToOrm(self, nodes):
     """
     Convert structs to orm classes, crud operations to orm crud methods
     """
+    newnodes = []
     # search struct constructor call
     for node in nodes:
       if node.nodetype == 'variable':
         self.varToOrm(node)
+        newnodes.append(node)
+      elif node.nodetype in self.cruds:
+        op = self.crudToConvert[node.nodetype]
+        newnode = op(node)
+        newnodes.append(newnode)
+      elif (node.nodetype == 'value') and node.body and node.body.nodetype in self.cruds:
+        op = self.crudToConvert[node.nodetype]
+        node.body = op(node.body)
+        newnodes.append(node)
+      elif (node.nodetype == 'value') and node.body and node.body.nodetype in self.rightCruds:
+        # convert value and body to functioncall
+        op = self.crudToConvert[node.body.nodetype]
+        newnode = op(node)
+        newnodes.append(newnode)
+      else:
+        newnodes.append(node)
+
+    return newnodes
 
   def varToOrm(self, va):
     """
@@ -748,5 +848,107 @@ class WenderGen(object):
               return True
     return False
 
+  def convertOrmInsert(self, node):
+    fc = None
+    if node.isAfter:
+      fc = core.FunctionCallNode('wender.orm.insertAfter')
+      # add coll param
+      fc.addParameter(core.ValueNode(node.collName))
+      # add val param
+      fc.addParameter(core.ValueNode(node.value))
+      # add where param
+    elif node.isBefore:
+      fc = core.FunctionCallNode('wender.orm.insertBefore')
+      # add coll param
+      fc.addParameter(core.ValueNode(node.collName))
+      # add val param
+      fc.addParameter(core.ValueNode(node.value))
+      # add where param
+    else:
+      fc = core.FunctionCallNode('wender.orm.insert')
+      # add coll param
+      fc.addParameter(core.ValueNode(node.collName))
+      # add val param
+      fc.addParameter(core.ValueNode(node.value))
+
+    return fc
+
+  def convertOrmSelectCount(self, node):
+    fc = core.FunctionCallNode('wender.orm.selectCount')
+    # add coll param
+    fc.addParameter(core.ValueNode(node.collName))
+
+    return fc
+
+  def convertOrmSelectOne(self, node):
+    fc = core.FunctionCallNode('wender.orm.selectOne')
+    # add coll param
+    fc.addParameter(core.ValueNode(node.collName))
+    # add where param
+
+    return fc
+
+  def convertOrmSelectFrom(self, node):
+    fc = core.FunctionCallNode('wender.orm.selectFrom')
+    sf = node.body
+    # add dest param
+    fc.addParameter(core.ValueNode(node.value))
+    # add coll param
+    fc.addParameter(core.ValueNode(sf.collName))
+    # add where param
+    fc.addParameter(sf.where if sf.where else core.ValueNode('none'))
+    # add order field param
+    fc.addParameter(core.ValueNode(sf.orderField) if sf.orderField else core.ValueNode('none'))
+    # add sort order param
+    fc.addParameter(core.ValueNode(sf.sortOrder) if sf.sortOrder else core.ValueNode('none'))
+
+    return fc
+
+  def convertOrmSelectConcat(self, node):
+    fc = core.FunctionCallNode('wender.orm.selectConcat')
+    sc = node.body
+    # add dest param
+    fc.addParameter(core.ValueNode(node.value))
+    # add colls param
+    colls = core.ArrayBodyNode()
+    for coll in sc.collections:
+      colls.addItem(core.ValueNode(coll))
+    fc.addParameter(colls)
+
+    return fc
+
+  def convertOrmSelectSum(self, node):
+    fc = core.FunctionCallNode('wender.orm.selectSum')
+    # add coll param
+    fc.addParameter(core.ValueNode(node.collName))
+    # add byField param
+    fc.addParameter(core.ValueNode(node.by))
+
+    return fc
+
+  def convertOrmUpdate(self, node):
+    fc = core.FunctionCallNode('wender.orm.update')
+    # add coll param
+    fc.addParameter(core.ValueNode(node.collName))
+    # add vals param
+    vals = core.DictBodyNode()
+    for name, item in node.items.items():
+      vals.addItem(name, item)
+    fc.addParameter(vals)
+    # add where param
+    fc.addParameter(where)
+
+    return fc
+
+  def convertOrmDeleteFrom(self, node):
+    fc = core.FunctionCallNode('wender.orm.deleteFrom')
+    # add coll param
+    fc.addParameter(core.ValueNode(node.collName))
+    # add where param
+    fc.addParameter(node.where)
+
+    return fc
+
   def flushUrls(self, urls):
     pass
+

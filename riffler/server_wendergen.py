@@ -52,17 +52,17 @@ class ServerWenderGen(object):
     self.addAuthImport = False
 
     # process classes
-    self.processClasses(module)
+    # self.processClasses(module)
 
-    # process functions
-    self.processFunctions(module)
+    # # process functions
+    # self.processFunctions(module)
 
-    # process variables
-    self.processVariables(module)
+    # # process variables
+    # self.processVariables(module)
 
-    self.processStructs(module)
+    # self.processStructs(module)
 
-    self.createHandlers(module)
+    # self.createHandlers(module)
 
     if self.addAuthImport:
       module.rawimports.append('from tornado.web import authenticated')
@@ -78,30 +78,33 @@ class ServerWenderGen(object):
     if not (urls.nodetype == 'variable' and urls.body and urls.body.nodetype == 'array_body'):
       self.sayError('urls must be variable and body must be array_body')
 
-    # to module add import wender.handlers
-    module.rawimports.append(self.handlerImport)
+    # # to module add import wender.handlers
+    # module.rawimports.append(self.handlerImport)
 
     # new body with handler class
     urlbody = core.ArrayBodyNode()
 
-    # for every handler create handler class
-    for item in urls.body.items:
-      url, func, name = item.items
-      # get module function
-      fn = self.module.functions[func.value]
-      # create handler class
-      handler = self.createHandlerClass(fn)
-      module.addClass(handler)
-      # add new item
-      newitem = core.ArrayBodyNode()
-      newitem.addItem(url)
-      newitem.addItem(core.ValueNode(handler.name))
-      urlbody.addItem(newitem)
+    # for every urlitem create ValueNode
 
-      # delete handler function
-      del self.module.functions[func.value]
+    # # for every handler create handler class
+    # for item in urls.body.items:
+    #   url = item.items[0]
+    #   func = item.items[1]
+    #   # get module function
+    #   fn = self.module.functions[func.value]
+    #   # create handler class
+    #   handler = self.createHandlerClass(fn)
+    #   module.addClass(handler)
+    #   # add new item
+    #   newitem = core.ArrayBodyNode()
+    #   newitem.addItem(url)
+    #   newitem.addItem(core.ValueNode(handler.name))
+    #   urlbody.addItem(newitem)
 
-    urls.body = urlbody
+    #   # delete handler function
+    #   del self.module.functions[func.value]
+
+    # urls.body = urlbody
 
   def createHandlerClass(self, fn):
     # create class
