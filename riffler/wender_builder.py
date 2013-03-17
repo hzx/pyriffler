@@ -439,6 +439,11 @@ class WenderBuilder(object):
         os.path.join(self.confsite.build_path, 'static/img')
         )
 
+    # copy static resources - favicon.ico...
+    shutil.copy(
+        os.path.join(self.projectPath, 'style/favicon.ico'),
+        os.path.join(self.confsite.build_path, 'static'))
+
   def genMongodbConnection(self):
     if len(self.confsite.db_user) > 0:
       if len(self.confsite.db_pass) > 0:
