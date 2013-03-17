@@ -19,6 +19,7 @@ from mutant.coffeegen import CoffeeGen
 from mutant.coffeeformatter import CoffeeFormatter
 from mutant.pygen import PyGen
 from mutant.pyformatter import PyFormatter
+from riffler.dbstruct import DbStruct
 
 def safeRemoveFile(filename):
   if os.path.exists(filename):
@@ -115,6 +116,9 @@ class WenderBuilder(object):
     # include urls
     self.buildWenderUrls()
 
+    # build database
+    self.buildDb(self.structs)
+
   def sayError(self, msg):
     raise Exception('wender_builder: %s' % msg)
 
@@ -176,7 +180,7 @@ class WenderBuilder(object):
       # add orm structs
       mainFunc = module.functions.get('main', None)
       if mainFunc:
-        ormFn = core.FunctionCallNode('wender.orm.addStructs')
+        ormFn = core.FunctionCallNode('wender.orm.setStructs')
         # add structs param
         ormFn.addParameter(self.structs)
         # insert to main method orm.addStructs
@@ -233,6 +237,10 @@ class WenderBuilder(object):
 
   def buildWenderUrls(self):
     self.createPyServer()
+
+  def buildDb(self, structs):
+    dbs = DbStruct(structs)
+    dbs.createIndexes(self.confsite.db_name)
 
   def genJsApp(self, conf, module):
     # wendergen = WenderGen()

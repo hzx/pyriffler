@@ -20,6 +20,7 @@ class WenderGen(object):
     self.eventname_re = re.compile('^on([a-zA-Z_]+)$')
     self.dot_re = re.compile('\.')
     self.name_re = re.compile(grammar.NAME_RE)
+    self.classNamesRe = re.compile('([a-zA-Z][a-zA-Z_0-9]*)')
     self.cruds = ['insert', 'update', 'delete_from']
     self.rightCruds = ['select_count', 'select_one', 'select_from', 'select_concat', 'select_sum']
     self.crudToConvert = {
@@ -38,6 +39,14 @@ class WenderGen(object):
         'int': core.ValueNode('0'),
         'float': core.ValueNode('0.0'),
         'datetime': core.ValueNode("'0000 00:00:00'")
+      }
+    self.funcToQuery = {
+        'is': core.FunctionCallNode('is'),
+        'isnot': core.FunctionCallNode('isnot'),
+        'gt': core.FunctionCallNode('gt'),
+        'gte': core.FunctionCallNode('gte'),
+        'lt': core.FunctionCallNode('lt'),
+        'lte': core.FunctionCallNode('lte'),
       }
 
   def genFuncName(self):
@@ -313,7 +322,10 @@ class WenderGen(object):
         params = core.DictBodyNode()
         fields.addItem("'%s'" % vname, params)
         # add to params type
-        params.addItem("'type'", core.ValueNode("'%s'" % va.decltype[0].word))
+        fieldtype = va.decltype[0].word
+
+        params.addItem("'isValueType'", core.ValueNode('true' if fieldtype in grammar.VALUE_TYPES else 'false'))
+        params.addItem("'type'", core.ValueNode("'%s'" % fieldtype))
         params.addItem("'isArray'", core.ValueNode('true' if self.isArrayType(va) else 'false'))
         # add to params inits
         for pname, pnode in va.inits.items():
@@ -553,9 +565,11 @@ class WenderGen(object):
           # value = core.ValueNode('%s.value' % node.value)
           # value.body = self.processObservableNode(node.body, func, cl)
           return setvalue
-        else:
+        elif not self.isWorldListName(node.value):
           value = core.ValueNode('%s.value' % node.value)
           return value
+        else:
+          return node
     elif node.nodetype == 'if':
       node.body = self.genObservables(node.body, func, cl)
       node.elseBody = self.genObservables(node.elseBody, func, cl)
@@ -606,6 +620,11 @@ class WenderGen(object):
 
     # add attributes
     for attrName, attrBody in tag.attributes.items():
+      # if attrName == 'class' and attrBody.nodetype == 'value' and attrBody.checkLitString():
+      #   clnames = self.classNamesRe.findall(attrBody.value)
+      #   attrBody = core.ArrayBodyNode()
+      #   for clname in clnames:
+      #     attrBody.addItem(core.ValueNode("'%s'" % clname))
       attrs.addItem(attrName, attrBody)
 
     # add list and render
@@ -808,7 +827,8 @@ class WenderGen(object):
       # TODO(dem) remove this hack
       if len(parts) == 1:
         return False
-      return True
+      # return True
+      return not self.isObservableListName(name, func, cl)
     else:
       # check if value from func params
       if func:
@@ -838,7 +858,7 @@ class WenderGen(object):
         return True
     elif firstName == 'world':
       # TODO(dem) check struct field is array type
-      return True
+      return self.isWorldListName(name)
     else:
       if func:
         for pname, pdecltype in func.params:
@@ -847,6 +867,18 @@ class WenderGen(object):
             if firstType == 'robject' or common.isStructName(self.module, firstType):
               return True
     return False
+
+  def isWorldListName(self, name):
+    parts = self.dot_re.split(name)
+    for part in parts:
+      # get variable
+      va = self.module.variables.get(part, None)
+      if not va: return False
+      # get struct
+      sname = va.decltype[0].word
+      st = common.getStruct(self.module, sname)
+      if not st: return False
+    return True
 
   def convertOrmInsert(self, node):
     fc = None
@@ -948,6 +980,14 @@ class WenderGen(object):
     fc.addParameter(node.where)
 
     return fc
+
+  def exprToQueryExpr(self, node):
+    """
+    Convert where expression to query map param.
+    """
+    if node.nodetype == 'functioncall':
+      pass
+    return node
 
   def flushUrls(self, urls):
     pass
