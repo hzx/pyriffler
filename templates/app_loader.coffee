@@ -5,7 +5,7 @@ window.onload = ->
   T = w.DomText
 
   # create loading structure
-  loader = new E("div", {"id": "loader_wrap"}, [
+  loaderView = new E("div", {"id": "loader_wrap"}, [
     new E("div", {"id": "loader"}, [
       new T("{{ message }}", null, null)
     ], null, null)
@@ -13,13 +13,27 @@ window.onload = ->
 
   w.init()
 
-  w.browser.appendElement(loader)
+  w.browser.appendElement(loaderView)
 
-  w.browser.loadCss("{{ css }}")
-  w.browser.loadScript "{{ js }}", ->
-    # run application
+  loader = new w.Loader()
+  loader.load([
+    ["{{ css }}", 'css'],
+    ["{{ js }}", 'js']
+  ], () ->
     window.{{app_name}}.main ->
-      loader.addClass("hidden_smooth")
+      loaderView.addClass("hidden_smooth")
       window.setTimeout ->
-        loader.addClass("hidden")
+        loaderView.addClass("hidden")
       , 1000
+  , (status) ->
+    alert(status)
+  )
+
+  # w.browser.loadCss("{{ css }}")
+  # w.browser.loadScript "{{ js }}", ->
+  #   # run application
+  #   window.{{app_name}}.main ->
+  #     loaderView.addClass("hidden_smooth")
+  #     window.setTimeout ->
+  #       loaderView.addClass("hidden")
+  #     , 1000
