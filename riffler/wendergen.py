@@ -887,21 +887,21 @@ class WenderGen(object):
       # add coll param
       fc.addParameter(core.ValueNode(node.collName))
       # add val param
-      fc.addParameter(core.ValueNode(node.value))
+      fc.addParameter(node.value)
       # add where param
     elif node.isBefore:
       fc = core.FunctionCallNode('wender.orm.insertBefore')
       # add coll param
       fc.addParameter(core.ValueNode(node.collName))
       # add val param
-      fc.addParameter(core.ValueNode(node.value))
+      fc.addParameter(node.value)
       # add where param
     else:
       fc = core.FunctionCallNode('wender.orm.insert')
       # add coll param
       fc.addParameter(core.ValueNode(node.collName))
       # add val param
-      fc.addParameter(core.ValueNode(node.value))
+      fc.addParameter(node.value)
 
     return fc
 

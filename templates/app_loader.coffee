@@ -26,14 +26,7 @@ window.onload = ->
         loaderView.addClass("hidden")
       , 1000
   , (status) ->
+    # TODO(dem) show inline message
     alert(status)
   )
 
-  # w.browser.loadCss("{{ css }}")
-  # w.browser.loadScript "{{ js }}", ->
-  #   # run application
-  #   window.{{app_name}}.main ->
-  #     loaderView.addClass("hidden_smooth")
-  #     window.setTimeout ->
-  #       loaderView.addClass("hidden")
-  #     , 1000
