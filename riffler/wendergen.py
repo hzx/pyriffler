@@ -360,6 +360,16 @@ class WenderGen(object):
         op = self.crudToConvert[node.body.nodetype]
         newnode = op(node)
         newnodes.append(newnode)
+      elif node.nodetype == 'if':
+        node.body = self.crudToOrm(node.body)
+        node.elseBody = self.crudToOrm(node.elseBody)
+        newnodes.append(node)
+      elif node.nodetype == 'for':
+        node.body = self.crudToOrm(node.body)
+        newnodes.append(node)
+      elif node.nodetype == 'while':
+        node.body = self.crudToOrm(node.body)
+        newnodes.append(node)
       else:
         newnodes.append(node)
 
@@ -968,7 +978,7 @@ class WenderGen(object):
       vals.addItem(name, item)
     fc.addParameter(vals)
     # add where param
-    fc.addParameter(where)
+    fc.addParameter(node.where)
 
     return fc
 
