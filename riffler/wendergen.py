@@ -330,7 +330,10 @@ class WenderGen(object):
         # add to params inits
         for pname, pnode in va.inits.items():
           if pnode.nodetype == 'value':
-            newvalue = "'%s'" % pnode.value if self.name_re.match(pnode.value) else pnode.value
+            if pnode.value in ['true', 'false']:
+              newvalue = pnode.value
+            else:
+              newvalue = "'%s'" % pnode.value if self.name_re.match(pnode.value) else pnode.value
             newpnode = core.ValueNode(newvalue)
           else:
             newpnode = pnode
@@ -384,7 +387,7 @@ class WenderGen(object):
     # if self.isArrayOfStructType(va) and va.body and va.body.nodetype != 'functioncall':
     if self.isArrayOfStructType(va):
       # create OrmList
-      ol = core.FunctionCallNode('wender.OrmList')
+      ol = core.FunctionCallNode('wender.OrmCacheList')
       ol.isConstructorCall = True
       # add params
       vatype = common.getOnlyName(va.decltype[0].word)
@@ -700,6 +703,7 @@ class WenderGen(object):
     # create factory method
     decltype = [common.Token(0, tag.name, 'name')]
     factory = core.FunctionNode(decltype, self.genFuncName())
+    factoryCall =  core.FunctionCallNode('this.' + factory.name if parentClass else factory.name)
 
     # add factory method
     if parentClass:
@@ -714,7 +718,9 @@ class WenderGen(object):
     view.setBody(createView)
     factory.addBodyNode(view)
 
-    # add view attrs assignment
+    # TODO(dem) refactor - make work with local variables
+    # give attributes to factory functioncall params
+    paramCounter = 0
     for name, attr in tag.attributes.items():
       result = self.eventname_re.findall(name)
       # add event
@@ -725,10 +731,34 @@ class WenderGen(object):
         factory.addBodyNode(evassign)
       # add member assign
       else:
+        paramCounter = paramCounter + 1
+        paramName = 'v%d' % paramCounter
+        decltype = [common.Token(0, 'var', 'var')]
+        # add to factory param
+        factory.addParameter(paramName, decltype)
+        # add to factory body member assign
         memassign = core.ValueNode('view.' + name)
         memassign.isName = True
-        memassign.setBody(attr)
+        memassign.setBody(core.ValueNode(paramName))
         factory.addBodyNode(memassign)
+        # add to factoryCall param
+        factoryCall.addParameter(attr)
+
+    # # add view attrs assignment
+    # for name, attr in tag.attributes.items():
+    #   result = self.eventname_re.findall(name)
+    #   # add event
+    #   if len(result):
+    #     evassign = core.FunctionCallNode('view.addEvent')
+    #     evassign.addParameter(core.ValueNode('view.event' + result[0]))
+    #     evassign.addParameter(attr)
+    #     factory.addBodyNode(evassign)
+    #   # add member assign
+    #   else:
+    #     memassign = core.ValueNode('view.' + name)
+    #     memassign.isName = True
+    #     memassign.setBody(attr)
+    #     factory.addBodyNode(memassign)
 
     # add view.element render
     elrender = core.ValueNode('view.element')
@@ -743,7 +773,7 @@ class WenderGen(object):
     ret.setBody(retBody)
     factory.addBodyNode(ret)
 
-    return core.FunctionCallNode('this.' + factory.name if parentClass else factory.name)
+    return factoryCall
 
   def isEventType(self, va):
     return (len(va.decltype) == 1) and (va.decltype[0].word == 'event')
@@ -899,6 +929,7 @@ class WenderGen(object):
       # add val param
       fc.addParameter(node.value)
       # add where param
+      fc.addParameter(node.where)
     elif node.isBefore:
       fc = core.FunctionCallNode('wender.orm.insertBefore')
       # add coll param
@@ -906,6 +937,7 @@ class WenderGen(object):
       # add val param
       fc.addParameter(node.value)
       # add where param
+      fc.addParameter(node.where)
     else:
       fc = core.FunctionCallNode('wender.orm.insert')
       # add coll param

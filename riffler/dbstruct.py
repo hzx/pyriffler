@@ -114,3 +114,4 @@ class DbStruct(object):
     if not dbdirection:
       raise Exception('index direction unknown "%s"' % direction)
     return dbdirection
+

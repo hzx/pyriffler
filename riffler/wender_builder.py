@@ -376,8 +376,6 @@ class WenderBuilder(object):
     safeRemoveFile(destApp)
     shutil.rmtree(imgTmpPath)
 
-
-
   def genCoffeeModuleCode(self, module):
     coffeeGen = CoffeeGen()
     coffeeFormatter = CoffeeFormatter()
@@ -386,8 +384,6 @@ class WenderBuilder(object):
     coffeeGen.generate(module)
     code = coffeeFormatter.generate(module)
     return code
-
-
 
   def genPyApp(self, conf, module):
     wendergen = ServerWenderGen()
@@ -489,3 +485,4 @@ class WenderBuilder(object):
         'debug': self.isDebug,
         'cookie_secret': self.confsite.cookie_secret,
       }, {})
+
