@@ -9,10 +9,13 @@ def encodeImage(filepath, compress):
   if filetype == 'svg': filetype = 'svg+xml'
   else:
     if compress:
-      optimizeImage(filepath, compress)
+      names = os.path.splitext(filepath)
+      if (len(names) == 2) and (names[1] == '.png'):
+        optimizeImage(filepath, compress)
   with open(filepath, 'r') as f:
     return 'url(data:image/%s;charset=utf-8;base64,%s)' % (
         filetype, base64.b64encode(f.read()))
+
 
 def optimizeImage(filepath, compress):
   """

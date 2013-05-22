@@ -12,4 +12,3 @@ def execute(*command):
 def executeWithOutput(*command):
   output = subprocess.check_output(command)
   return output
-    

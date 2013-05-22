@@ -587,7 +587,7 @@ class WenderGen(object):
       node.body = self.genObservables(node.body, func, cl)
       node.elseBody = self.genObservables(node.elseBody, func, cl)
     elif node.nodetype == 'for':
-      pass
+      node.body = self.genObservables(node.body, func, cl)
     elif node.nodetype == 'array_value':
       if self.isObservableListName(node.value, func, cl):
         value = core.ValueNode('%s[%s].value' % (node.value, node.index))
