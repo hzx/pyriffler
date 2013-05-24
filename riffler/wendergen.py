@@ -67,7 +67,7 @@ class WenderGen(object):
     # replace all values in expr with values[index].value
     valuesIndex = 0
     self.replaceParamVariables(expr, valuesIndex)
-    
+
     return func
 
   def generate(self, module):
@@ -430,7 +430,7 @@ class WenderGen(object):
 
   def valueToText(self, value, parentClass):
     """
-    Create and return 
+    Create and return
     """
     domtext = core.FunctionCallNode(self.domTextName)
     domtext.isConstructorCall = True
@@ -593,6 +593,10 @@ class WenderGen(object):
         value = core.ValueNode('%s[%s].value' % (node.value, node.index))
         return value
     elif node.nodetype == 'functioncall':
+      # if fcall is raw, replace it b its parameter
+      if node.name == 'raw':
+        node = node.params[0]
+        return node
       # process params
       params = []
       for param in node.params:
