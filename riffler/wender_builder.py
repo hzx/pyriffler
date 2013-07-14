@@ -215,7 +215,8 @@ class WenderBuilder(object):
       # copy templates
       templateDest = os.path.join(self.confsite.build_path, 'templates/%s/' % conf.name)
       if not os.path.exists(templateDest): os.mkdir(templateDest)
-      templateSrc = os.path.join(self.projectPath, '%s/templates/*.html' % conf.name)
+      # templateSrc = os.path.join(self.projectPath, '%s/templates/*.html' % conf.name)
+      templateSrc = os.path.join(self.projectPath, '%s/templates/*' % conf.name)
       for filename in glob.glob(templateSrc):
         shutil.copy(filename, templateDest)
 
