@@ -32,27 +32,35 @@ usage:
 
   riffler pass
   print password and encoded password
+
+  riffler cssopt
 """
+
 
 def usage():
   print HELP
+
 
 def checkProjectExists():
   if not os.path.exists(PROJECT_FILE):
     print 'not found project file "%s"' % PROJECT_FILE
     sys.exit(1)
 
+
 def taskDebug():
   taskBuild(isDebug=True)
 
+
 def taskRelease():
   taskBuild(isDebug=False)
+
 
 def taskBuild(isDebug):
   checkProjectExists()
 
   builder = WenderBuilder()
   builder.build(PROJECT_FILE, isDebug)
+
 
 def taskCreate():
   # check param count
@@ -63,16 +71,32 @@ def taskCreate():
   appName = sys.argv[2]
   print 'task create NOT IMPLEMENTED, appName "%s"' % appName
 
+
 def taskDb():
   print 'task db NOT IMPLEMENTED'
+
 
 def taskPass():
   sys.path.insert(0, os.path.join(settings.WENDER_PATH, 'server'))
   from wender.utils.crypt import genPassword, encodePassword
-  rawpass = genPassword()
+  # if password provided
+  if len(sys.argv) == 3:
+    rawpass = sys.argv[2]
+  else:
+    rawpass = genPassword()
   encpass = encodePassword(rawpass)
   print 'pass: %s' % rawpass
   print 'encoded: %s' % encpass
+
+
+def taskCssimg():
+  builder = WenderBuilder()
+  builder.inlineImgInCss(os.path.join(CURRENT_PATH, ''))
+
+
+def taskCssopt():
+  pass
+
 
 def main():
   taskMap = {
@@ -81,6 +105,8 @@ def main():
       'create': taskCreate,
       'db': taskDb,
       'pass': taskPass,
+      'cssimg': taskCssimg,
+      'cssopt': taskCssopt,
     }
 
   # by default use task debug
@@ -100,4 +126,3 @@ def main():
 
 if __name__ == '__main__':
   sys.exit(main())
-
